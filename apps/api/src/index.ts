@@ -2,7 +2,7 @@ import express from "express";
 import dotenv from "dotenv";
 import logger from "./config/logger";
 import { agent } from "./agent";
-import type { BaseMessage } from "@langchain/core/messages";
+import { type BaseMessage, HumanMessage } from "@langchain/core/messages";
     
 dotenv.config();
 
@@ -19,7 +19,7 @@ app.get("/health", (req, res) => {
 app.post("/agent", async (req, res) => {
   try {
     const result = await agent.invoke({
-      messages: [{ role: "user", content: req.body.message }]
+      messages: [new HumanMessage(req.body.message)],
     }) as { messages: BaseMessage[] };
 
     // Pega a última mensagem do agente
@@ -29,7 +29,11 @@ app.post("/agent", async (req, res) => {
     logger.debug(response);
     res.send(response);
   } catch (error: any) {
-    logger.error("Error occurred:", error);
+    console.error("=== ERROR DETAILS ===");
+    console.error("Error:", error);
+    console.error("Stack:", error?.stack);
+    console.error("Message:", error?.message);
+    console.error("====================");
     res.status(500).send("Internal Server Error");
   }
 });
