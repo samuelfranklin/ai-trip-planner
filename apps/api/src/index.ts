@@ -1,13 +1,11 @@
 import express from "express";
-import dotenv from "dotenv";
 import logger from "./config/logger";
+import { env } from "./config/env";
 import { agent } from "./agent";
 import { type BaseMessage, HumanMessage } from "@langchain/core/messages";
-    
-dotenv.config();
 
 const app = express();
-const PORT = process.env.PORT;
+const PORT = env.PORT;
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
