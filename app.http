@@ -6,3 +6,11 @@ Content-Type: application/json
 {
     "message": "hello, how are you?"
 }
+
+HTTP/1.1 500  - Internal Server Error
+x-powered-by: Express
+content-type: text/html; charset=utf-8
+content-length: 21
+etag: W/"15-/6VXivhc2MKdLfIkLcUE47K6aH0"
+date: Fri, 10 Oct 2025 15:25:49 GMT
+connection: close

@@ -10,10 +10,13 @@ importers:
     dependencies:
       '@langchain/core':
         specifier: ^0.3.78
-        version: 0.3.78(openai@5.12.2(zod@4.1.12))
+        version: 0.3.78(openai@5.12.2(zod@3.25.76))
       '@langchain/langgraph':
         specifier: ^0.4.9
         version: 0.4.9(@langchain/core@0.3.78(openai@5.12.2(zod@4.1.12)))(zod-to-json-schema@3.24.6(zod@4.1.12))
+      '@langchain/ollama':
+        specifier: ^0.2.4
+        version: 0.2.4(@langchain/core@0.3.78(openai@5.12.2(zod@3.25.76)))
       '@langchain/openai':
         specifier: ^0.6.14
         version: 0.6.14(@langchain/core@0.3.78(openai@5.12.2(zod@4.1.12)))
@@ -42,8 +45,8 @@ importers:
         specifier: ^13.1.1
         version: 13.1.1
       zod:
-        specifier: ^4.1.12
-        version: 4.1.12
+        specifier: ^3.25.76
+        version: 3.25.76
     devDependencies:
       '@types/cors':
         specifier: ^2.8.19
@@ -258,6 +261,12 @@ packages:
     peerDependenciesMeta:
       zod-to-json-schema:
         optional: true
+
+  '@langchain/ollama@0.2.4':
+    resolution: {integrity: sha512-XThDrZurNPcUO6sasN13rkes1aGgu5gWAtDkkyIGT3ZeMOvrYgPKGft+bbhvsigTIH9C01TfPzrSp8LAmvHIjA==}
+    engines: {node: '>=18'}
+    peerDependencies:
+      '@langchain/core': '>=0.3.58 <0.4.0'
 
   '@langchain/openai@0.6.14':
     resolution: {integrity: sha512-SM/xJOFDxT9NN/07fvhNB5dgAsIOQaLhmANxrRlSQ7Qs1zImMrzOvq+/5JP/ifpC/YxcgEnt4dblKVqvNU/C5A==}
@@ -782,6 +791,9 @@ packages:
   ohash@2.0.11:
     resolution: {integrity: sha512-RdR9FQrFwNBNXAr4GixM8YaRZRJ5PUWbKYbE5eOsrwAjJW0q2REGcf79oYPsLyskQCZG1PLN+S/K1V00joZAoQ==}
 
+  ollama@0.5.18:
+    resolution: {integrity: sha512-lTFqTf9bo7Cd3hpF6CviBe/DEhewjoZYd9N/uCe7O20qYTvGqrNOFOBDj3lbZgFWHUgDv5EeyusYxsZSLS8nvg==}
+
   on-exit-leak-free@2.1.2:
     resolution: {integrity: sha512-0eJJY6hXLGf1udHwfNftBqH+g73EU4B504nZeKpz1sYRKafAghwxEJunB2O7rDZkL4PGfsMVnTXZ2EjibbqcsA==}
     engines: {node: '>=14.0.0'}
@@ -1031,6 +1043,9 @@ packages:
     resolution: {integrity: sha512-BNGbWLfd0eUPabhkXUVm0j8uuvREyTh5ovRa/dyow/BqAbZJyC+5fU+IzQOzmAKzYqYRAISoRhdQr3eIZ/PXqg==}
     engines: {node: '>= 0.8'}
 
+  whatwg-fetch@3.6.20:
+    resolution: {integrity: sha512-EqhiFU6daOA8kpjOWTL0olhVOF3i7OrFzSYiGsEMB8GcXS+RrzauAERX65xMeNWVqxA6HXH2m69Z9LaKKdisfg==}
+
   wrappy@1.0.2:
     resolution: {integrity: sha512-l4Sp/DRseor9wL6EvV2+TuQn63dMkPjZ/sp9XkghTEbV9KlPS1xUsZ3u7/IQO4wxtcFB4bgpQPRcR3QCvezPcQ==}
 
@@ -1132,6 +1147,26 @@ snapshots:
   '@esbuild/win32-x64@0.25.10':
     optional: true
 
+  '@langchain/core@0.3.78(openai@5.12.2(zod@3.25.76))':
+    dependencies:
+      '@cfworker/json-schema': 4.1.1
+      ansi-styles: 5.2.0
+      camelcase: 6.3.0
+      decamelize: 1.2.0
+      js-tiktoken: 1.0.21
+      langsmith: 0.3.73(openai@5.12.2(zod@3.25.76))
+      mustache: 4.2.0
+      p-queue: 6.6.2
+      p-retry: 4.6.2
+      uuid: 10.0.0
+      zod: 3.25.76
+      zod-to-json-schema: 3.24.6(zod@3.25.76)
+    transitivePeerDependencies:
+      - '@opentelemetry/api'
+      - '@opentelemetry/exporter-trace-otlp-proto'
+      - '@opentelemetry/sdk-trace-base'
+      - openai
+
   '@langchain/core@0.3.78(openai@5.12.2(zod@4.1.12))':
     dependencies:
       '@cfworker/json-schema': 4.1.1
@@ -1178,6 +1213,12 @@ snapshots:
     transitivePeerDependencies:
       - react
       - react-dom
+
+  '@langchain/ollama@0.2.4(@langchain/core@0.3.78(openai@5.12.2(zod@3.25.76)))':
+    dependencies:
+      '@langchain/core': 0.3.78(openai@5.12.2(zod@3.25.76))
+      ollama: 0.5.18
+      uuid: 10.0.0
 
   '@langchain/openai@0.6.14(@langchain/core@0.3.78(openai@5.12.2(zod@4.1.12)))':
     dependencies:
@@ -1641,6 +1682,18 @@ snapshots:
       - openai
       - ws
 
+  langsmith@0.3.73(openai@5.12.2(zod@3.25.76)):
+    dependencies:
+      '@types/uuid': 10.0.0
+      chalk: 4.1.2
+      console-table-printer: 2.14.6
+      p-queue: 6.6.2
+      p-retry: 4.6.2
+      semver: 7.7.3
+      uuid: 10.0.0
+    optionalDependencies:
+      openai: 5.12.2(zod@3.25.76)
+
   langsmith@0.3.73(openai@5.12.2(zod@4.1.12)):
     dependencies:
       '@types/uuid': 10.0.0
@@ -1688,6 +1741,10 @@ snapshots:
   object-inspect@1.13.4: {}
 
   ohash@2.0.11: {}
+
+  ollama@0.5.18:
+    dependencies:
+      whatwg-fetch: 3.6.20
 
   on-exit-leak-free@2.1.2: {}
 
@@ -1955,6 +2012,8 @@ snapshots:
 
   vary@1.1.2: {}
 
+  whatwg-fetch@3.6.20: {}
+
   wrappy@1.0.2: {}
 
   yaml@2.8.1: {}
@@ -1970,4 +2029,5 @@ snapshots:
 
   zod@3.25.76: {}
 
-  zod@4.1.12: {}
+  zod@4.1.12:
+    optional: true

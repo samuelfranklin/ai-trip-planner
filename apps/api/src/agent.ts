@@ -1,11 +1,9 @@
 import { createReactAgent } from "@langchain/langgraph/prebuilt";
-import { ChatOpenAI } from "@langchain/openai";
 import { z } from "zod";
 import type { CompiledStateGraph } from "@langchain/langgraph";
+import { createLLM } from "./services/llm.service";
 
-const model = new ChatOpenAI({
-    model: "gpt-4o-mini",
-});
+const model = createLLM();
 
 const AgentOutputFormatSchema = z.object({
   numeric_answer: z.number().optional().describe("The numeric answer, if the user asked for one"),
