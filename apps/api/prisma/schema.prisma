@@ -1,0 +1,790 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================================
+// ENUMS
+// ============================================================================
+
+enum FlightBookingStatus {
+  TICKETED
+  CANCELED
+}
+
+enum HotelBookingStatus {
+  BOOKED
+  CANCELED
+}
+
+enum ConversationStatus {
+  ACTIVE
+  COMPLETED
+  ABANDONED
+}
+
+enum MessageRole {
+  USER
+  ASSISTANT
+  SYSTEM
+}
+
+enum MemoryType {
+  PREFERENCE
+  FACT
+  CONSTRAINT
+  CONTEXT
+}
+
+enum MemorySource {
+  EXPLICIT
+  INFERRED
+}
+
+// ============================================================================
+// USER & PROFILE - User management and preferences
+// ============================================================================
+
+model User {
+  id              String    @id @default(uuid())
+  email           String    @unique @db.VarChar(255)
+  name            String    @db.VarChar(255)
+
+  // Preferences
+  preferredClass  String?   @db.VarChar(20) // economy, business, first
+  budgetMin       Decimal?  @db.Decimal(10, 2)
+  budgetMax       Decimal?  @db.Decimal(10, 2)
+  preferredLanguage String  @default("pt-BR") @db.VarChar(10)
+
+  // Relations
+  profile         UserProfile?
+  interests       UserInterest[]
+  memories        AgentMemory[]
+  conversations   ConversationSession[]
+  searchHistory   SearchHistory[]
+  flightBookings  FlightBooking[]
+  hotelBookings   HotelBooking[]
+  recommendations Recommendation[]
+
+  // Timestamps
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  lastLoginAt     DateTime?
+
+  @@index([email])
+  @@map("users")
+}
+
+model UserProfile {
+  id              String   @id @default(uuid())
+  userId          String   @unique
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Completude do perfil
+  isOnboarded     Boolean  @default(false)
+  completeness    Int      @default(0) // 0-100%
+
+  // Travel preferences
+  travelFrequency String?  @db.VarChar(20) // rarely, occasionally, frequently
+  travelPurpose   String[] // leisure, business, family
+  budgetLevel     String?  @db.VarChar(20) // budget, moderate, luxury
+
+  // Constraints
+  dietaryRestrictions String[]
+  mobilityNeeds       String?  @db.VarChar(255)
+  languagesSpoken     String[] // pt-BR, en-US
+
+  // Timestamps
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@map("user_profiles")
+}
+
+// ============================================================================
+// CATEGORIES & TAGS - Classification system
+// ============================================================================
+
+model Category {
+  id          String @id @default(uuid())
+  name        String @unique @db.VarChar(100)
+  slug        String @unique @db.VarChar(100)
+  type        String @db.VarChar(50) // destination, hotel, activity, flight
+  description String? @db.Text
+
+  // Relations
+  userInterests       UserInterest[]
+  destinationCategories DestinationCategory[]
+  hotelCategories     HotelCategory[]
+  poiCategories       POICategory[]
+
+  // Metadata
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  @@index([type, isActive])
+  @@map("categories")
+}
+
+model UserInterest {
+  userId     String
+  categoryId String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  weight     Decimal  @default(1.0) @db.Decimal(3, 2) // importance 0-1
+  createdAt  DateTime @default(now())
+
+  @@id([userId, categoryId])
+  @@map("user_interests")
+}
+
+// ============================================================================
+// CONVERSATION & MESSAGES - Chat context management
+// ============================================================================
+
+model ConversationSession {
+  id              String             @id @default(uuid())
+  userId          String?
+  user            User?              @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  // Session state
+  status          ConversationStatus @default(ACTIVE)
+  intent          String?            @db.VarChar(100)
+  currentStep     String?            @db.VarChar(100)
+
+  // Accumulated context
+  context         Json               // { origin?, destination?, dates?, budget?, travelers? }
+
+  // Relations
+  messages        ConversationMessage[]
+
+  // Timestamps
+  startedAt       DateTime           @default(now())
+  lastActivityAt  DateTime           @default(now())
+  completedAt     DateTime?
+
+  @@index([userId, status])
+  @@index([lastActivityAt(sort: Desc)])
+  @@map("conversation_sessions")
+}
+
+model ConversationMessage {
+  id              String              @id @default(uuid())
+  sessionId       String
+  session         ConversationSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  role            MessageRole
+  content         String              @db.Text
+
+  // Message analysis
+  intent          String?             @db.VarChar(100)
+  entities        Json?               // extracted entities
+  sentiment       String?             @db.VarChar(20)
+
+  // Agent actions
+  toolCalls       Json?               // tools invoked by agent
+
+  createdAt       DateTime            @default(now())
+
+  @@index([sessionId, createdAt])
+  @@map("conversation_messages")
+}
+
+// ============================================================================
+// AGENT MEMORY - Long-term memory about users
+// ============================================================================
+
+model AgentMemory {
+  id              String       @id @default(uuid())
+  userId          String
+  user            User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Memory type
+  memoryType      MemoryType
+
+  // Content
+  key             String       @db.VarChar(255)
+  value           String       @db.Text
+  confidence      Decimal      @db.Decimal(3, 2) // 0.0 - 1.0
+
+  // Origin
+  extractedFrom   String?      @db.VarChar(255)
+  source          MemorySource
+
+  // Usage tracking
+  isActive        Boolean      @default(true)
+  timesReferenced Int          @default(0)
+  lastUsedAt      DateTime?
+
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  @@index([userId, memoryType])
+  @@index([userId, isActive])
+  @@map("agent_memories")
+}
+
+// ============================================================================
+// SEARCH HISTORY - Track user searches
+// ============================================================================
+
+model SearchHistory {
+  id              String   @id @default(uuid())
+  userId          String?
+  user            User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  conversationId  String?
+
+  searchType      String   @db.VarChar(50) // flight, hotel, destination
+  parameters      Json     // search params
+  results         Json?    // results returned
+  resultsCount    Int      @default(0)
+
+  createdAt       DateTime @default(now())
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([searchType])
+  @@map("search_history")
+}
+
+// ============================================================================
+// AIRPORT CATALOG - Master data for airports worldwide
+// ============================================================================
+
+model Airport {
+  id              String    @id @default(uuid())
+  iataCode        String    @unique @db.VarChar(3)
+  icaoCode        String?   @db.VarChar(4)
+
+  // Airport information
+  name            String    @db.VarChar(255)
+  description     String?   @db.Text
+
+  // Geographic information
+  city            String    @db.VarChar(100)
+  state           String?   @db.VarChar(100)
+  country         String    @db.VarChar(100)
+  countryCode     String    @db.VarChar(2) // ISO 3166-1 alpha-2
+  region          String    @db.VarChar(50) // e.g., "Asia", "Europe", "South America"
+  continent       String    @db.VarChar(20)
+
+  // Coordinates for distance calculations
+  latitude        Decimal?  @db.Decimal(10, 7)
+  longitude       Decimal?  @db.Decimal(10, 7)
+
+  // Airport metadata
+  timezone        String?   @db.VarChar(50)
+  isInternational Boolean   @default(false)
+  popularityScore Int?      @default(0) // 0-100 (major hubs vs secondary)
+  isActive        Boolean   @default(true)
+
+  // Alternative airports (JSON array of IATA codes)
+  alternativeAirports String[] // e.g., NYC has [JFK, LGA, EWR]
+
+  // Timestamps
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  // Relations
+  departureFlights FlightItinerary[] @relation("DepartureAirport")
+  arrivalFlights   FlightItinerary[] @relation("ArrivalAirport")
+
+  @@index([iataCode])
+  @@index([city, country])
+  @@index([country, isActive])
+  @@index([region, isActive])
+  @@index([continent, isActive])
+  @@index([isInternational, isActive])
+  @@index([popularityScore(sort: Desc)])
+  @@map("airports")
+}
+
+// ============================================================================
+// FLIGHT CATALOG - Available flight itineraries for search
+// ============================================================================
+
+model FlightItinerary {
+  id              String    @id @default(uuid())
+  itineraryId     String    @unique @db.VarChar(100)
+
+  // Route information
+  origin          String    @db.VarChar(3)
+  destination     String    @db.VarChar(3)
+  departDate      DateTime  @db.Date
+  returnDate      DateTime? @db.Date
+
+  // Relations to airports
+  originAirport      Airport?  @relation("DepartureAirport", fields: [origin], references: [iataCode])
+  destinationAirport Airport?  @relation("ArrivalAirport", fields: [destination], references: [iataCode])
+
+  // Airline and flight details
+  airline         String    @db.VarChar(100)
+  stops           Int       @default(0)
+  baggageIncluded Boolean   @default(false)
+
+  // Pricing
+  totalPrice      Decimal   @db.Decimal(10, 2)
+  currency        String    @default("BRL") @db.VarChar(3)
+
+  // Segments (stored as JSON)
+  // outbound: Segment[] - departure flights
+  // inbound?: Segment[] - return flights (optional for one-way)
+  outboundSegments Json
+  inboundSegments  Json?
+
+  // Quality scores for AI recommendations
+  popularityScore Int?      @default(0) // 0-100
+  comfortScore    Int?      // 1-10
+  layoverQuality  String?   @db.VarChar(20) // excellent, good, acceptable, poor
+
+  // Metadata
+  isActive        Boolean   @default(true)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  // Relations
+  bookings        FlightBooking[]
+  priceHistory    FlightPriceHistory[]
+
+  @@index([itineraryId])
+  @@index([origin, destination, departDate])
+  @@index([isActive, departDate])
+  @@index([airline])
+  @@index([popularityScore(sort: Desc)])
+  @@map("flight_itineraries")
+}
+
+// ============================================================================
+// DESTINATIONS & POI - Destination knowledge base
+// ============================================================================
+
+model Destination {
+  id              String    @id @default(uuid())
+  name            String    @db.VarChar(255)
+  city            String    @db.VarChar(100)
+  country         String    @db.VarChar(100)
+  countryCode     String    @db.VarChar(2)
+
+  // Rich information for AI
+  description     String    @db.Text
+  shortDescription String?  @db.VarChar(500)
+  bestMonths      Int[]     // [3,4,5] = March-May
+  averageBudget   Decimal?  @db.Decimal(10, 2)
+  popularityScore Int       @default(0) // 1-100
+
+  // Geographic
+  latitude        Decimal?  @db.Decimal(10, 7)
+  longitude       Decimal?  @db.Decimal(10, 7)
+  timezone        String?   @db.VarChar(50)
+
+  // Relations
+  categories      DestinationCategory[]
+  pointsOfInterest PointOfInterest[]
+  seasonalData    SeasonalData[]
+
+  // Metadata
+  isActive        Boolean   @default(true)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([city, country])
+  @@index([country, isActive])
+  @@index([popularityScore(sort: Desc)])
+  @@map("destinations")
+}
+
+model DestinationCategory {
+  destinationId String
+  categoryId    String
+  destination   Destination @relation(fields: [destinationId], references: [id], onDelete: Cascade)
+  category      Category    @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@id([destinationId, categoryId])
+  @@map("destination_categories")
+}
+
+model PointOfInterest {
+  id              String      @id @default(uuid())
+  destinationId   String
+  destination     Destination @relation(fields: [destinationId], references: [id], onDelete: Cascade)
+
+  name            String      @db.VarChar(255)
+  type            String      @db.VarChar(50) // museum, beach, monument, restaurant, activity
+  description     String      @db.Text
+  shortDescription String?    @db.VarChar(500)
+
+  // Location
+  address         String?     @db.VarChar(500)
+  latitude        Decimal     @db.Decimal(10, 7)
+  longitude       Decimal     @db.Decimal(10, 7)
+
+  // Ratings
+  rating          Decimal?    @db.Decimal(3, 2)
+  reviewCount     Int         @default(0)
+
+  // Additional info
+  website         String?     @db.VarChar(255)
+  phoneNumber     String?     @db.VarChar(50)
+  openingHours    Json?       // { monday: "9-18", ... }
+  ticketPrice     Decimal?    @db.Decimal(10, 2)
+  currency        String?     @db.VarChar(3)
+
+  // Relations
+  categories      POICategory[]
+
+  // Metadata
+  isActive        Boolean     @default(true)
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  @@index([destinationId, isActive])
+  @@index([type, isActive])
+  @@index([rating(sort: Desc)])
+  @@map("points_of_interest")
+}
+
+model POICategory {
+  poiId      String
+  categoryId String
+  poi        PointOfInterest @relation(fields: [poiId], references: [id], onDelete: Cascade)
+  category   Category        @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@id([poiId, categoryId])
+  @@map("poi_categories")
+}
+
+// ============================================================================
+// HOTEL CATALOG - Available hotels for search
+// ============================================================================
+
+model Hotel {
+  id              String    @id @default(uuid())
+  hotelId         String    @unique @db.VarChar(100)
+
+  // Basic information
+  name            String    @db.VarChar(255)
+  city            String    @db.VarChar(100)
+  address         String?   @db.VarChar(500)
+
+  // Geographic
+  latitude        Decimal?  @db.Decimal(10, 7)
+  longitude       Decimal?  @db.Decimal(10, 7)
+  distanceToCenter Decimal? @db.Decimal(5, 2) // km
+  distanceToAirport Decimal? @db.Decimal(5, 2) // km
+
+  // Rating and reviews
+  rating          Decimal   @db.Decimal(3, 2) // e.g., 4.75
+  reviewCount     Int       @default(0)
+
+  // Pricing
+  nightlyRate     Decimal   @db.Decimal(10, 2)
+  currency        String    @default("BRL") @db.VarChar(3)
+
+  // Amenities and policies
+  breakfastIncluded Boolean @default(false)
+  refundable        Boolean @default(true)
+  cancellationPolicy String? @db.Text
+
+  // Highlights for AI
+  highlights      String[]  // pool, spa, beach_view, etc
+
+  // Additional details (stored as JSON)
+  // { amenities: string[], images: string[], description: string, etc. }
+  details         Json?
+
+  // Relations
+  categories      HotelCategory[]
+  bookings        HotelBooking[]
+  priceHistory    HotelPriceHistory[]
+
+  // Metadata
+  isActive        Boolean   @default(true)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([hotelId])
+  @@index([city, isActive])
+  @@index([rating(sort: Desc)])
+  @@index([nightlyRate])
+  @@map("hotels")
+}
+
+model HotelCategory {
+  hotelId    String
+  categoryId String
+  hotel      Hotel    @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@id([hotelId, categoryId])
+  @@map("hotel_categories")
+}
+
+// ============================================================================
+// FLIGHT BOOKINGS - Persisted flight reservations
+// ============================================================================
+
+model FlightBooking {
+  id              String               @id @default(uuid())
+  pnr             String               @unique @db.VarChar(10)
+  status          FlightBookingStatus  @default(TICKETED)
+
+  // Financial information
+  total           Decimal              @db.Decimal(10, 2)
+  currency        String               @default("BRL") @db.VarChar(3)
+
+  // Passenger information
+  passengerName   String               @db.VarChar(255)
+  passengerEmail  String               @db.VarChar(255)
+
+  // Reference to flight itinerary
+  itineraryId     String               @db.VarChar(100)
+  itinerary       FlightItinerary?     @relation(fields: [itineraryId], references: [itineraryId])
+
+  // User reference
+  userId          String?
+  user            User?                @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  // Timestamps
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+  canceledAt      DateTime?
+
+  @@index([pnr])
+  @@index([passengerEmail])
+  @@index([status])
+  @@index([createdAt(sort: Desc)])
+  @@index([itineraryId])
+  @@index([userId])
+  @@map("flight_bookings")
+}
+
+// ============================================================================
+// HOTEL BOOKINGS - Persisted hotel reservations
+// ============================================================================
+
+model HotelBooking {
+  id              String              @id @default(uuid())
+  reservationId   String              @unique @db.VarChar(20)
+  status          HotelBookingStatus  @default(BOOKED)
+
+  // Financial information
+  total           Decimal             @db.Decimal(10, 2)
+  currency        String              @default("BRL") @db.VarChar(3)
+
+  // Guest information
+  guestName       String              @db.VarChar(255)
+  guestEmail      String              @db.VarChar(255)
+
+  // Reference to hotel
+  hotelId         String              @db.VarChar(100)
+  hotel           Hotel?              @relation(fields: [hotelId], references: [hotelId])
+
+  // Stay information
+  checkin         DateTime            @db.Date
+  checkout        DateTime            @db.Date
+  rooms           Int                 @default(1)
+  nights          Int
+
+  // Timestamps
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+  canceledAt      DateTime?
+
+  // User reference
+  userId          String?
+  user            User?               @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([reservationId])
+  @@index([guestEmail])
+  @@index([status])
+  @@index([createdAt(sort: Desc)])
+  @@index([hotelId, checkin, checkout])
+  @@index([userId])
+  @@map("hotel_bookings")
+}
+
+// ============================================================================
+// PRICE HISTORY - Track price changes over time
+// ============================================================================
+
+model FlightPriceHistory {
+  id            String   @id @default(uuid())
+  itineraryId   String
+  itinerary     FlightItinerary @relation(fields: [itineraryId], references: [itineraryId], onDelete: Cascade)
+
+  price         Decimal  @db.Decimal(10, 2)
+  currency      String   @db.VarChar(3)
+
+  // Price snapshot
+  baggageIncluded Boolean
+
+  recordedAt    DateTime @default(now())
+
+  @@index([itineraryId, recordedAt(sort: Desc)])
+  @@index([recordedAt(sort: Desc)])
+  @@map("flight_price_history")
+}
+
+model HotelPriceHistory {
+  id            String   @id @default(uuid())
+  hotelId       String
+  hotel         Hotel    @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+
+  nightlyRate   Decimal  @db.Decimal(10, 2)
+  currency      String   @db.VarChar(3)
+
+  // For specific dates (optional)
+  forDate       DateTime? @db.Date
+
+  recordedAt    DateTime @default(now())
+
+  @@index([hotelId, recordedAt(sort: Desc)])
+  @@index([recordedAt(sort: Desc)])
+  @@map("hotel_price_history")
+}
+
+// ============================================================================
+// SEASONAL DATA - Best time to visit destinations
+// ============================================================================
+
+model SeasonalData {
+  id              String      @id @default(uuid())
+  destinationId   String
+  destination     Destination @relation(fields: [destinationId], references: [id], onDelete: Cascade)
+
+  month           Int         // 1-12
+
+  // Climate
+  avgTempMin      Decimal?    @db.Decimal(5, 2)
+  avgTempMax      Decimal?    @db.Decimal(5, 2)
+  rainyDays       Int?
+  weatherDescription String?  @db.VarChar(255)
+
+  // Tourism
+  season          String      @db.VarChar(20) // high, low, shoulder
+  priceMultiplier Decimal     @default(1.0) @db.Decimal(3, 2)
+  crowdLevel      String?     @db.VarChar(20) // low, moderate, high
+
+  // Events (stored as JSON array)
+  events          Json?       // [{ name: "Carnaval", date: "..." }]
+
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  @@unique([destinationId, month])
+  @@index([destinationId, season])
+  @@map("seasonal_data")
+}
+
+// ============================================================================
+// KNOWLEDGE BASE - FAQs and help content
+// ============================================================================
+
+model KnowledgeBase {
+  id              String   @id @default(uuid())
+
+  // Categorization
+  category        String   @db.VarChar(50) // how_to, policy, features, troubleshooting
+  topic           String   @db.VarChar(100) // booking, cancellation, payment
+
+  // Content (default language)
+  question        String   @db.Text
+  answer          String   @db.Text
+  keywords        String[] // for search
+
+  // Multilingual support
+  questionPtBr    String   @db.Text
+  answerPtBr      String   @db.Text
+  questionEnUs    String   @db.Text
+  answerEnUs      String   @db.Text
+
+  // Metadata
+  popularityScore Int      @default(0)
+  timesViewed     Int      @default(0)
+  isActive        Boolean  @default(true)
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([category, topic])
+  @@index([popularityScore(sort: Desc)])
+  @@index([isActive])
+  @@map("knowledge_base")
+}
+
+// ============================================================================
+// RECOMMENDATIONS - AI-driven recommendations
+// ============================================================================
+
+model Recommendation {
+  id              String   @id @default(uuid())
+  userId          String?
+  user            User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  // Recommendation type and target
+  type            String   @db.VarChar(50) // destination, flight, hotel, activity
+  targetId        String   @db.VarChar(255) // ID of the recommended item
+  targetName      String   @db.VarChar(255) // Name for quick reference
+
+  // Reasoning
+  reason          String   @db.Text
+  score           Decimal  @db.Decimal(3, 2) // 0-1 confidence
+
+  // Basis
+  basedOn         String   @db.VarChar(50) // user_history, similar_users, trending, seasonal
+  factors         Json     // { budget_match: 0.9, interest_match: 0.8 }
+
+  // Engagement tracking
+  wasShown        Boolean  @default(false)
+  wasClicked      Boolean  @default(false)
+  wasBooked       Boolean  @default(false)
+  shownAt         DateTime?
+  clickedAt       DateTime?
+  bookedAt        DateTime?
+
+  // Metadata
+  expiresAt       DateTime? // recommendations can expire
+  createdAt       DateTime @default(now())
+
+  @@index([userId, type])
+  @@index([score(sort: Desc)])
+  @@index([createdAt(sort: Desc)])
+  @@map("recommendations")
+}
+
+// ============================================================================
+// SUGGESTED QUESTIONS - Guide user conversations
+// ============================================================================
+
+model SuggestedQuestion {
+  id              String   @id @default(uuid())
+
+  // When to show
+  triggerContext  String   @db.VarChar(100) // new_user, after_greeting, no_destination
+  priority        Int      @default(0)
+
+  // The suggestion
+  category        String   @db.VarChar(50) // destination, budget, dates, help
+
+  // Multilingual
+  textPtBr        String   @db.VarChar(255)
+  textEnUs        String   @db.VarChar(255)
+
+  // Action to trigger (optional)
+  action          String?  @db.VarChar(100)
+
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+
+  @@index([triggerContext, priority])
+  @@index([isActive])
+  @@map("suggested_questions")
+}

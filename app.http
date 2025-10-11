@@ -1,16 +1,24 @@
 GET http://localhost:3000/health
+
+HTTP/1.1 200  - OK
+x-powered-by: Express
+content-type: text/html; charset=utf-8
+content-length: 22
+etag: W/"16-CPEJeqIXu5vfVigzXabAg8nQAYc"
+date: Fri, 10 Oct 2025 16:05:04 GMT
+connection: close
 ###
 POST http://localhost:3000/agent
 Content-Type: application/json
 
 {
-    "message": "hello, how are you?"
+    "message": "Olá! Quero viajar para Paris, me diga os voos disponíveis em Janeiro de 2026 para dois adultos. Viagem terá duração de 10 dias."
 }
 
-HTTP/1.1 500  - Internal Server Error
+HTTP/1.1 200  - OK
 x-powered-by: Express
 content-type: text/html; charset=utf-8
-content-length: 21
-etag: W/"15-/6VXivhc2MKdLfIkLcUE47K6aH0"
-date: Fri, 10 Oct 2025 15:25:49 GMT
+content-length: 8306
+etag: W/"2072-rEPipShssukI4aacN7pmLq+9XY4"
+date: Sat, 11 Oct 2025 01:18:25 GMT
 connection: close
