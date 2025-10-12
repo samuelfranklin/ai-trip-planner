@@ -22,6 +22,8 @@ export const searchDestinationsTool = tool(
           country: true,
           shortDescription: true,
           description: true,
+          heroImageUrl: true,
+          galleryImageUrls: true,
           bestMonths: true,
           averageBudget: true,
           popularityScore: true,
@@ -69,6 +71,8 @@ export const searchDestinationsTool = tool(
           (dest.description
             ? `${dest.description.slice(0, 200)}${dest.description.length > 200 ? '...' : ''}`
             : null),
+        heroImageUrl: dest.heroImageUrl ?? null,
+        galleryImageUrls: dest.galleryImageUrls ?? [],
         bestMonths: dest.bestMonths,
         averageBudget: dest.averageBudget ?? null,
         averageBudgetLabel: dest.averageBudget ? `R$ ${dest.averageBudget.toFixed(2)}` : null,

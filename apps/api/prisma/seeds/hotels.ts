@@ -3,6 +3,103 @@ import { PrismaClient } from '../../src/generated/prisma';
 export async function seedHotels(prisma: PrismaClient) {
   console.log('🏨 Seeding hotels...');
 
+  const defaultHotelGallery = [
+    'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=1200&q=80',
+    'https://images.unsplash.com/photo-1521791136064-7986c2920216?auto=format&fit=crop&w=1200&q=80',
+    'https://images.unsplash.com/photo-1505691938895-1758d7feb511?auto=format&fit=crop&w=1200&q=80',
+  ];
+
+  const hotelMedia: Record<string, { heroImageUrl: string; galleryImageUrls: string[] }> = {
+    'hotel-sp-001': {
+      heroImageUrl: 'https://images.unsplash.com/photo-1501117716987-c8e1ecb2100d?auto=format&fit=crop&w=1200&q=80',
+      galleryImageUrls: [...defaultHotelGallery],
+    },
+    'hotel-sp-002': {
+      heroImageUrl: 'https://images.unsplash.com/photo-1507679799987-c73779587ccf?auto=format&fit=crop&w=1200&q=80',
+      galleryImageUrls: [...defaultHotelGallery],
+    },
+    'hotel-rj-001': {
+      heroImageUrl: 'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1200&q=80',
+      galleryImageUrls: [...defaultHotelGallery],
+    },
+    'hotel-rj-002': {
+      heroImageUrl: 'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=1200&q=80',
+      galleryImageUrls: [...defaultHotelGallery],
+    },
+    'hotel-ssa-001': {
+      heroImageUrl: 'https://images.unsplash.com/photo-1466978913421-dad2ebd01d17?auto=format&fit=crop&w=1200&q=80',
+      galleryImageUrls: [...defaultHotelGallery],
+    },
+    'hotel-ssa-002': {
+      heroImageUrl: 'https://images.unsplash.com/photo-1505761671935-60b3a7427bad?auto=format&fit=crop&w=1200&q=80',
+      galleryImageUrls: [...defaultHotelGallery],
+    },
+    'hotel-rec-001': {
+      heroImageUrl: 'https://images.unsplash.com/photo-1496417263034-38ec4f0b665a?auto=format&fit=crop&w=1200&q=80',
+      galleryImageUrls: [...defaultHotelGallery],
+    },
+    'hotel-rec-002': {
+      heroImageUrl: 'https://images.unsplash.com/photo-1501117703631-ecfbcaaa60f9?auto=format&fit=crop&w=1200&q=80',
+      galleryImageUrls: [...defaultHotelGallery],
+    },
+    'hotel-bue-001': {
+      heroImageUrl: 'https://images.unsplash.com/photo-1489515217757-5fd1be406fef?auto=format&fit=crop&w=1200&q=80',
+      galleryImageUrls: [...defaultHotelGallery],
+    },
+    'hotel-bue-002': {
+      heroImageUrl: 'https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?auto=format&fit=crop&w=1200&q=80',
+      galleryImageUrls: [...defaultHotelGallery],
+    },
+    'hotel-scl-001': {
+      heroImageUrl: 'https://images.unsplash.com/photo-1488340406467-0e78c76ebc4c?auto=format&fit=crop&w=1200&q=80',
+      galleryImageUrls: [...defaultHotelGallery],
+    },
+    'hotel-scl-002': {
+      heroImageUrl: 'https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=1200&q=80',
+      galleryImageUrls: [...defaultHotelGallery],
+    },
+    'hotel-lis-001': {
+      heroImageUrl: 'https://images.unsplash.com/photo-1512914890250-353c97b0f553?auto=format&fit=crop&w=1200&q=80',
+      galleryImageUrls: [...defaultHotelGallery],
+    },
+    'hotel-lis-002': {
+      heroImageUrl: 'https://images.unsplash.com/photo-1559087867-b494dd8bdfbf?auto=format&fit=crop&w=1200&q=80',
+      galleryImageUrls: [...defaultHotelGallery],
+    },
+    'hotel-par-001': {
+      heroImageUrl: 'https://images.unsplash.com/photo-1505691938895-1758d7feb511?auto=format&fit=crop&w=1200&q=80',
+      galleryImageUrls: [...defaultHotelGallery],
+    },
+    'hotel-par-002': {
+      heroImageUrl: 'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=1200&q=80',
+      galleryImageUrls: [...defaultHotelGallery],
+    },
+    'hotel-mia-001': {
+      heroImageUrl: 'https://images.unsplash.com/photo-1505765050516-f72dcac9c60c?auto=format&fit=crop&w=1200&q=80',
+      galleryImageUrls: [...defaultHotelGallery],
+    },
+    'hotel-mia-002': {
+      heroImageUrl: 'https://images.unsplash.com/photo-1502980426475-b83966705988?auto=format&fit=crop&w=1200&q=80',
+      galleryImageUrls: [...defaultHotelGallery],
+    },
+    'hotel-puj-001': {
+      heroImageUrl: 'https://images.unsplash.com/photo-1470246973918-29a93221c455?auto=format&fit=crop&w=1200&q=80',
+      galleryImageUrls: [...defaultHotelGallery],
+    },
+    'hotel-puj-002': {
+      heroImageUrl: 'https://images.unsplash.com/photo-1496412705862-e0088f16f791?auto=format&fit=crop&w=1200&q=80',
+      galleryImageUrls: [...defaultHotelGallery],
+    },
+    'hotel-sfo-001': {
+      heroImageUrl: 'https://images.unsplash.com/photo-1540202404-0d6f8f5f5ca7?auto=format&fit=crop&w=1200&q=80',
+      galleryImageUrls: [...defaultHotelGallery],
+    },
+    'hotel-sfo-002': {
+      heroImageUrl: 'https://images.unsplash.com/photo-1519822472278-5f1ce7c188b6?auto=format&fit=crop&w=1200&q=80',
+      galleryImageUrls: [...defaultHotelGallery],
+    },
+  };
+
   const hotels = [
     // São Paulo
     {
@@ -425,11 +522,17 @@ export async function seedHotels(prisma: PrismaClient) {
 
   for (const hotel of hotels) {
     const { categoryNames, ...hotelData } = hotel;
+    const media = hotelMedia[hotelData.hotelId];
+    const hotelInput = {
+      ...hotelData,
+      heroImageUrl: media?.heroImageUrl ?? null,
+      galleryImageUrls: media?.galleryImageUrls ?? [],
+    };
 
     const createdHotel = await prisma.hotel.upsert({
       where: { hotelId: hotelData.hotelId },
-      update: hotelData,
-      create: hotelData,
+      update: hotelInput,
+      create: hotelInput,
     });
 
     // Link categories

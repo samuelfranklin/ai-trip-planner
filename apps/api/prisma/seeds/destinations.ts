@@ -3,6 +3,111 @@ import { PrismaClient } from '../../src/generated/prisma';
 export async function seedDestinations(prisma: PrismaClient) {
   console.log('🌍 Seeding destinations...');
 
+  const defaultDestinationGallery = [
+    'https://images.unsplash.com/photo-1521791136064-7986c2920216?auto=format&fit=crop&w=1200&q=80',
+    'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=1200&q=80',
+    'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1200&q=80',
+  ];
+
+  const destinationMedia: Record<string, { heroImageUrl: string; galleryImageUrls: string[] }> = {
+    'São Paulo': {
+      heroImageUrl: 'https://images.unsplash.com/photo-1531256456869-ce942a665e80?auto=format&fit=crop&w=1200&q=80',
+      galleryImageUrls: [...defaultDestinationGallery],
+    },
+    'Rio de Janeiro': {
+      heroImageUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=1200&q=80',
+      galleryImageUrls: [...defaultDestinationGallery],
+    },
+    Salvador: {
+      heroImageUrl: 'https://images.unsplash.com/photo-1526404079166-6c3b14d4446f?auto=format&fit=crop&w=1200&q=80',
+      galleryImageUrls: [...defaultDestinationGallery],
+    },
+    'Recife e Porto de Galinhas': {
+      heroImageUrl: 'https://images.unsplash.com/photo-1518458028785-8fbcd101ebb9?auto=format&fit=crop&w=1200&q=80',
+      galleryImageUrls: [...defaultDestinationGallery],
+    },
+    Fortaleza: {
+      heroImageUrl: 'https://images.unsplash.com/photo-1526402468770-3b30f66e187d?auto=format&fit=crop&w=1200&q=80',
+      galleryImageUrls: [...defaultDestinationGallery],
+    },
+    Florianópolis: {
+      heroImageUrl: 'https://images.unsplash.com/photo-1543076447-215ad9ba6923?auto=format&fit=crop&w=1200&q=80',
+      galleryImageUrls: [...defaultDestinationGallery],
+    },
+    'Foz do Iguaçu': {
+      heroImageUrl: 'https://images.unsplash.com/photo-1513836279014-a89f7a76ae86?auto=format&fit=crop&w=1200&q=80',
+      galleryImageUrls: [...defaultDestinationGallery],
+    },
+    'Buenos Aires': {
+      heroImageUrl: 'https://images.unsplash.com/photo-1529307474719-3d1d1cfbb0de?auto=format&fit=crop&w=1200&q=80',
+      galleryImageUrls: [...defaultDestinationGallery],
+    },
+    Santiago: {
+      heroImageUrl: 'https://images.unsplash.com/photo-1469474968028-56623f02e42e?auto=format&fit=crop&w=1200&q=80',
+      galleryImageUrls: [...defaultDestinationGallery],
+    },
+    Lima: {
+      heroImageUrl: 'https://images.unsplash.com/photo-1520975918316-7da8f9f86006?auto=format&fit=crop&w=1200&q=80',
+      galleryImageUrls: [...defaultDestinationGallery],
+    },
+    'Cusco e Machu Picchu': {
+      heroImageUrl: 'https://images.unsplash.com/photo-1526392060635-9d6019884377?auto=format&fit=crop&w=1200&q=80',
+      galleryImageUrls: [...defaultDestinationGallery],
+    },
+    Montevidéu: {
+      heroImageUrl: 'https://images.unsplash.com/photo-1528909514045-2fa4ac7a08ba?auto=format&fit=crop&w=1200&q=80',
+      galleryImageUrls: [...defaultDestinationGallery],
+    },
+    Cartagena: {
+      heroImageUrl: 'https://images.unsplash.com/photo-1543248939-ff40856f65d4?auto=format&fit=crop&w=1200&q=80',
+      galleryImageUrls: [...defaultDestinationGallery],
+    },
+    Miami: {
+      heroImageUrl: 'https://images.unsplash.com/photo-1464146072230-91cabc968266?auto=format&fit=crop&w=1200&q=80',
+      galleryImageUrls: [...defaultDestinationGallery],
+    },
+    Orlando: {
+      heroImageUrl: 'https://images.unsplash.com/photo-1505843513577-22bb7d21e455?auto=format&fit=crop&w=1200&q=80',
+      galleryImageUrls: [...defaultDestinationGallery],
+    },
+    'Nova York': {
+      heroImageUrl: 'https://images.unsplash.com/photo-1467269204594-9661b134dd2b?auto=format&fit=crop&w=1200&q=80',
+      galleryImageUrls: [...defaultDestinationGallery],
+    },
+    'São Francisco': {
+      heroImageUrl: 'https://images.unsplash.com/photo-1501594907352-04cda38ebc29?auto=format&fit=crop&w=1200&q=80',
+      galleryImageUrls: [...defaultDestinationGallery],
+    },
+    Lisboa: {
+      heroImageUrl: 'https://images.unsplash.com/photo-1508641898614-8c317d46054b?auto=format&fit=crop&w=1200&q=80',
+      galleryImageUrls: [...defaultDestinationGallery],
+    },
+    Paris: {
+      heroImageUrl: 'https://images.unsplash.com/photo-1502602898657-3e91760cbb34?auto=format&fit=crop&w=1200&q=80',
+      galleryImageUrls: [...defaultDestinationGallery],
+    },
+    Roma: {
+      heroImageUrl: 'https://images.unsplash.com/photo-1526481280695-3c469ccf26a4?auto=format&fit=crop&w=1200&q=80',
+      galleryImageUrls: [...defaultDestinationGallery],
+    },
+    Barcelona: {
+      heroImageUrl: 'https://images.unsplash.com/photo-1473959383413-cd1bf1ac1b77?auto=format&fit=crop&w=1200&q=80',
+      galleryImageUrls: [...defaultDestinationGallery],
+    },
+    Madrid: {
+      heroImageUrl: 'https://images.unsplash.com/photo-1519671482749-fd09be7ccebf?auto=format&fit=crop&w=1200&q=80',
+      galleryImageUrls: [...defaultDestinationGallery],
+    },
+    'Punta Cana': {
+      heroImageUrl: 'https://images.unsplash.com/photo-1478118330274-ff72cf1161f3?auto=format&fit=crop&w=1200&q=80',
+      galleryImageUrls: [...defaultDestinationGallery],
+    },
+    Curaçao: {
+      heroImageUrl: 'https://images.unsplash.com/photo-1543342386-8b95db76a05f?auto=format&fit=crop&w=1200&q=80',
+      galleryImageUrls: [...defaultDestinationGallery],
+    },
+  };
+
   const destinations = [
     // Brasil - Destinos Nacionais
     {
@@ -377,6 +482,12 @@ export async function seedDestinations(prisma: PrismaClient) {
 
   for (const dest of destinations) {
     const { categoryNames, ...destData } = dest;
+    const media = destinationMedia[destData.name];
+    const destinationInput = {
+      ...destData,
+      heroImageUrl: media?.heroImageUrl ?? null,
+      galleryImageUrls: media?.galleryImageUrls ?? [],
+    };
 
     // Check if destination already exists
     const existing = await prisma.destination.findFirst({
@@ -390,10 +501,10 @@ export async function seedDestinations(prisma: PrismaClient) {
     const destination = existing
       ? await prisma.destination.update({
           where: { id: existing.id },
-          data: destData
+          data: destinationInput
         })
       : await prisma.destination.create({
-          data: destData
+          data: destinationInput
         });
 
     // Link categories
