@@ -5,20 +5,29 @@ x-powered-by: Express
 content-type: text/html; charset=utf-8
 content-length: 22
 etag: W/"16-CPEJeqIXu5vfVigzXabAg8nQAYc"
-date: Fri, 10 Oct 2025 16:05:04 GMT
+date: Sat, 11 Oct 2025 22:55:24 GMT
 connection: close
 ###
 POST http://localhost:3000/agent
 Content-Type: application/json
 
 {
-    "message": "Olá! Quero viajar para Paris, me diga os voos disponíveis em Janeiro de 2026 para dois adultos. Viagem terá duração de 10 dias."
+    "conversationId": "demo-thread-1",
+    "message": "Pode me sugerir um destino legal para dezembro?"
 }
 
 HTTP/1.1 200  - OK
 x-powered-by: Express
 content-type: text/html; charset=utf-8
-content-length: 8306
-etag: W/"2072-rEPipShssukI4aacN7pmLq+9XY4"
-date: Sat, 11 Oct 2025 01:18:25 GMT
+content-length: 182
+etag: W/"b6-7XSuFd+mBaRg3MjpVBRsfn+3CbE"
+date: Sun, 12 Oct 2025 00:22:51 GMT
 connection: close
+###
+POST http://localhost:3000/agent
+Content-Type: application/json
+
+{
+    "conversationId": "demo-thread-1",
+    "message": "Ótimo, pode verificar hotéis nesse destino?"
+}
