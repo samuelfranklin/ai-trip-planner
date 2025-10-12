@@ -227,6 +227,25 @@ export async function seedAirports(prisma: PrismaClient) {
       popularityScore: 92,
       alternativeAirports: ['AEP'],
     },
+
+    // Estados Unidos - Principais Aeroportos
+    {
+      iataCode: 'SFO',
+      icaoCode: 'KSFO',
+      name: 'San Francisco International Airport',
+      city: 'San Francisco',
+      state: 'California',
+      country: 'United States',
+      countryCode: 'US',
+      region: 'North America',
+      continent: 'North America',
+      latitude: 37.6213,
+      longitude: -122.3790,
+      timezone: 'America/Los_Angeles',
+      isInternational: true,
+      popularityScore: 98,
+      alternativeAirports: ['OAK', 'SJC'],
+    },
     {
       iataCode: 'AEP',
       icaoCode: 'SABE',

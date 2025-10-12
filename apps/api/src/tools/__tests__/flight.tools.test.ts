@@ -6,17 +6,24 @@ jest.mock('../../lib/prisma', () => {
   };
   const flightItinerary = {
     findMany: jest.fn(),
+    findUnique: jest.fn(),
+  };
+  const flightBooking = {
+    findUnique: jest.fn(),
+    create: jest.fn(),
+    update: jest.fn(),
   };
 
   return {
     prisma: {
       airport,
       flightItinerary,
+      flightBooking,
     },
   };
 });
 
-import { searchFlightsTool, getAirportInfoTool } from '../flight.tools';
+import { listFlightsTool, getAirportInfoTool, bookFlightTool } from '../flight.tools';
 import { prisma } from '../../lib/prisma';
 
 type PrismaMock = jest.Mocked<typeof prisma>;
@@ -41,7 +48,7 @@ describe('flight tools', () => {
     console.error = originalConsoleError;
   });
 
-  describe('searchFlightsTool', () => {
+  describe('listFlightsTool', () => {
     it('returns itineraries when flights are available', async () => {
       (prismaMock.airport.findMany as jest.Mock)
         .mockResolvedValueOnce([
@@ -57,6 +64,7 @@ describe('flight tools', () => {
           destination: 'LIS',
           airline: 'TAP',
           totalPrice: 3200,
+          currency: 'BRL',
           stops: 0,
           returnDate: new Date('2025-01-20T00:00:00.000Z'),
           departDate: new Date('2025-01-10T00:00:00.000Z'),
@@ -76,17 +84,16 @@ describe('flight tools', () => {
         },
       ]);
 
-      const result = await searchFlightsTool.invoke({ origin: 'GRU', destination: 'LIS' });
+      const result = await listFlightsTool.invoke({ origin: 'GRU', destination: 'LIS', departDate: '2025-01-10', returnDate: '2025-01-20' });
       const payload = JSON.parse(result);
 
       expect(payload.language).toBe('en');
       expect(payload.data).toHaveLength(1);
       expect(payload.data[0]).toMatchObject({
-        origin: { code: 'GRU' },
-        destination: { code: 'LIS' },
-        totalPriceLabel: 'R$ 3200.00',
+        itineraryId: 'itin-1',
+        totalLabel: 'BRL 3200.00',
       });
-      expect(payload.suggestions).toContain('Run search_hotels to compare nearby stays');
+      expect(payload.suggestions).toContain('Ask book_flight to lock a seat using an itineraryId');
     });
 
     it('returns guidance when origin airports are missing', async () => {
@@ -96,12 +103,12 @@ describe('flight tools', () => {
           { iataCode: 'LIS', name: 'Humberto Delgado', city: 'Lisbon', country: 'Portugal' },
         ]);
 
-      const result = await searchFlightsTool.invoke({ origin: 'AAA', destination: 'LIS' });
+      const result = await listFlightsTool.invoke({ origin: 'AAA', destination: 'LIS', departDate: '2025-01-10' });
       const payload = JSON.parse(result);
 
       expect(payload.data).toEqual([]);
-      expect(payload.message).toMatch(/couldn't find any airports for the origin/i);
-      expect(payload.suggestions).toContain('Double-check the IATA code or city name');
+      expect(payload.message).toMatch(/no airports found for origin/i);
+      expect(payload.suggestions).toContain('Double-check the city or IATA code');
     });
 
     it('returns guidance when flights are not found', async () => {
@@ -114,23 +121,94 @@ describe('flight tools', () => {
         ]);
       (prismaMock.flightItinerary.findMany as jest.Mock).mockResolvedValueOnce([]);
 
-      const result = await searchFlightsTool.invoke({ origin: 'GRU', destination: 'LIS' });
+      const result = await listFlightsTool.invoke({ origin: 'GRU', destination: 'LIS', departDate: '2025-01-10' });
       const payload = JSON.parse(result);
 
       expect(payload.data).toEqual([]);
-      expect(payload.message).toMatch(/couldn't find flights/i);
+      expect(payload.message).toMatch(/no flights found/i);
       expect(payload.suggestions).toHaveLength(3);
     });
 
     it('returns friendly fallback on errors', async () => {
       (prismaMock.airport.findMany as jest.Mock).mockRejectedValueOnce(new Error('network'));
 
-      const result = await searchFlightsTool.invoke({ origin: 'GRU', destination: 'LIS' });
+      const result = await listFlightsTool.invoke({ origin: 'GRU', destination: 'LIS', departDate: '2025-01-10' });
       const payload = JSON.parse(result);
 
       expect(payload.error).toBe(true);
-      expect(payload.message).toMatch(/ran into an issue while fetching flights/i);
-      expect(payload.nextSteps).toContain('Confirm the origin and destination details');
+      expect(payload.message).toBe('network');
+      expect(payload.nextSteps).toContain('Ensure origin/destination inputs are valid cities or IATA codes');
+    });
+  });
+
+  describe('bookFlightTool', () => {
+    it('persists extended metadata and returns a ticketed booking', async () => {
+      (prismaMock.flightItinerary.findUnique as jest.Mock).mockResolvedValueOnce({
+        itineraryId: 'FLT-CNF-SFO-20251001-001',
+        totalPrice: 4850,
+        currency: 'BRL',
+      });
+
+      (prismaMock.flightBooking.findUnique as jest.Mock).mockResolvedValueOnce(null);
+
+      (prismaMock.flightBooking.create as jest.Mock).mockResolvedValueOnce({
+        id: 'booking-1',
+        pnr: 'ABC123',
+        status: 'TICKETED',
+        total: 4850,
+        currency: 'BRL',
+        passengerName: 'Maria Passenger',
+        passengerEmail: 'maria@example.com',
+        passengerPhone: '+55-31-99999-0000',
+        adults: 2,
+        seatClass: 'business',
+        fareBasis: 'J7NR',
+        specialRequests: 'Vegetarian meal',
+        metadata: { corporateCode: 'ACME' },
+        itineraryId: 'FLT-CNF-SFO-20251001-001',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        ticketedAt: new Date(),
+        canceledAt: null,
+        userId: null,
+      });
+
+      const result = await bookFlightTool.invoke({
+        itineraryId: 'FLT-CNF-SFO-20251001-001',
+        adults: 2,
+        seatClass: 'business',
+        fareBasis: 'J7NR',
+        specialRequests: 'Vegetarian meal',
+        metadata: { corporateCode: 'ACME' },
+        passenger: {
+          fullName: 'Maria Passenger',
+          email: 'maria@example.com',
+          phone: '+55-31-99999-0000',
+        },
+      });
+
+      expect(prismaMock.flightBooking.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            passengerPhone: '+55-31-99999-0000',
+            adults: 2,
+            seatClass: 'business',
+            fareBasis: 'J7NR',
+            specialRequests: 'Vegetarian meal',
+            metadata: { corporateCode: 'ACME' },
+          }),
+        }),
+      );
+
+      const payload = JSON.parse(result);
+
+      expect(payload).toMatchObject({
+        pnr: 'ABC123',
+        adults: 2,
+        seatClass: 'business',
+        specialRequests: 'Vegetarian meal',
+        metadata: { corporateCode: 'ACME' },
+      });
     });
   });
 

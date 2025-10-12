@@ -1,0 +1,174 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "AI Trip Planner API",
+    "version": "1.0.0",
+    "description": "HTTP interface for the LangGraph-based travel planning agent. Use these endpoints to check service health and interact with the conversational agent."
+  },
+  "servers": [
+    {
+      "url": "http://localhost:3000",
+      "description": "Local development"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Health",
+      "description": "Service status checks"
+    },
+    {
+      "name": "Agent",
+      "description": "Conversational travel agent operations"
+    }
+  ],
+  "paths": {
+    "/health": {
+      "get": {
+        "tags": ["Health"],
+        "summary": "Health check",
+        "description": "Returns OK when the API is ready to receive requests.",
+        "responses": {
+          "200": {
+            "description": "Service is healthy",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string",
+                  "example": "OK - Server is healthy"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/agent": {
+      "post": {
+        "tags": ["Agent"],
+        "summary": "Send a message to the travel agent",
+        "description": "Provides a chat-like interface to the LangGraph agent. Supply a message and an optional conversation identifier to keep context across turns.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AgentRequest"
+              },
+              "examples": {
+                "newConversation": {
+                  "summary": "Start a new thread",
+                  "value": {
+                    "message": "Quero viajar de Belo Horizonte para San Francisco entre 1 e 10 de outubro de 2025."
+                  }
+                },
+                "existingConversation": {
+                  "summary": "Continue an existing thread",
+                  "value": {
+                    "conversationId": "demo-thread-1",
+                    "message": "Pode listar opções de hotéis perto de Fisherman's Wharf?"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Agent reply with updated conversation identifier",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentResponse"
+                },
+                "examples": {
+                  "success": {
+                    "value": {
+                      "conversationId": "demo-thread-1",
+                      "response": "Aqui estão algumas opções de hotéis com excelente avaliação próximos ao Fisherman's Wharf..."
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error when message is missing",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "missingMessage": {
+                    "value": {
+                      "error": "Request body must contain a non-empty 'message' field."
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Agent execution error",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string",
+                  "example": "Internal Server Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "AgentRequest": {
+        "type": "object",
+        "properties": {
+          "conversationId": {
+            "type": "string",
+            "description": "Identifier returned from a previous /agent call. Omit to start a new conversation.",
+            "example": "demo-thread-1"
+          },
+          "message": {
+            "type": "string",
+            "description": "User utterance for the agent to process.",
+            "example": "Quais são os melhores voos CNF → SFO em outubro?"
+          },
+          "reset": {
+            "type": "boolean",
+            "description": "When true, clears the stored conversation history before invoking the agent.",
+            "default": false
+          }
+        },
+        "required": ["message"]
+      },
+      "AgentResponse": {
+        "type": "object",
+        "properties": {
+          "conversationId": {
+            "type": "string",
+            "description": "Identifier that should be reused to continue the conversation"
+          },
+          "response": {
+            "type": "string",
+            "description": "Natural-language reply generated by the agent"
+          }
+        },
+        "required": ["conversationId", "response"]
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "string"
+          }
+        },
+        "required": ["error"]
+      }
+    }
+  }
+}

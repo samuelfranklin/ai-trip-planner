@@ -1,16 +1,23 @@
 import express from "express";
 import { randomUUID } from "crypto";
 import { type BaseMessage, HumanMessage } from "@langchain/core/messages";
+import swaggerUi from "swagger-ui-express";
 import logger from "./config/logger";
 import { env } from "./config/env";
 import { agent } from "./agent";
 import { conversationStore } from "./lib/conversation-store";
+import openApiDocument from "./docs/openapi.json" assert { type: "json" };
 
 const app = express();
 const PORT = env.PORT;
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+app.use("/docs", swaggerUi.serve, swaggerUi.setup(openApiDocument));
+app.get("/openapi.json", (_req, res) => {
+  res.json(openApiDocument);
+});
 
 app.get("/health", (req, res) => {
   res.send("OK - Server is healthy");
@@ -35,10 +42,10 @@ app.post("/agent", async (req, res) => {
         : randomUUID();
 
     if (resetConversation === true) {
-      conversationStore.clear(conversationId);
+      await conversationStore.clear(conversationId);
     }
 
-    const history = conversationStore.get(conversationId);
+    const history = await conversationStore.get(conversationId);
 
     const result = (await agent.invoke({
       messages: [...history, new HumanMessage(trimmedMessage)],
@@ -47,9 +54,9 @@ app.post("/agent", async (req, res) => {
     // Pega a última mensagem do agente
     const lastMessage = result.messages[result.messages.length - 1];
 
-    conversationStore.set(conversationId, result.messages);
+    await conversationStore.set(conversationId, result.messages);
 
-  const response = normalizeMessageContent(lastMessage?.content) ?? "Sem resposta";
+    const response = normalizeMessageContent(lastMessage?.content) ?? "Sem resposta";
 
     logger.debug(response);
     res.json({ conversationId, response });

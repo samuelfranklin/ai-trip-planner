@@ -87,7 +87,7 @@ export const searchDestinationsTool = tool(
           language: 'en',
           suggestions: [
             'Ask get_seasonal_info for the best months to visit',
-            'Use search_hotels to explore nearby stays',
+            'Use list_hotels to explore nearby stays',
           ],
         },
         null,
@@ -290,8 +290,8 @@ export const getSeasonalInfoTool = tool(
           source: 'seasonal',
           language: 'en',
           suggestions: [
-            'Pair with search_hotels to plan stays for those months',
-            'Use search_flights to check flight options for the same period',
+            'Pair with list_hotels to plan stays for those months',
+            'Use list_flights to check flight options for the same period',
           ],
         },
         null,

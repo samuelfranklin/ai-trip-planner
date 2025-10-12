@@ -2,12 +2,15 @@ node_modules
 .env
 dist
 *.log
-apps/api/dist
+.venv
+
+**/dist
 apps/view/dist
 apps/api/prisma/seeds/**/*.js
 apps/api/prisma/seeds/**/*.d.ts
 apps/api/prisma/seeds/**/*.js.map
 apps/api/prisma/seeds/**/*.d.ts.map
 apps/api/prisma/seed.d.ts.map
-.gitignore
-.gitignore
+
+blis_requirements.txt
+Senior Frontend Engineer Blis_AI.pdf

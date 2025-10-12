@@ -9,11 +9,15 @@ import {
   getSeasonalInfoTool,
 } from "./tools/destination.tools";
 import {
-  searchFlightsTool,
+  listFlightsTool,
+  bookFlightTool,
+  cancelFlightTool,
   getAirportInfoTool,
 } from "./tools/flight.tools";
 import {
-  searchHotelsTool,
+  listHotelsTool,
+  bookHotelTool,
+  cancelHotelTool,
   getHotelCategoriesTool,
   getHotelAmenitiesTool,
 } from "./tools/hotel.tools";
@@ -34,10 +38,14 @@ export const agent: CompiledStateGraph<any, any, any> = createReactAgent({
       searchDestinationsTool,
       getSeasonalInfoTool,
       // Flight tools
-      searchFlightsTool,
+      listFlightsTool,
+      bookFlightTool,
+      cancelFlightTool,
       getAirportInfoTool,
       // Hotel tools
-      searchHotelsTool,
+  listHotelsTool,
+  bookHotelTool,
+  cancelHotelTool,
       getHotelCategoriesTool,
       getHotelAmenitiesTool,
     ],
@@ -51,9 +59,13 @@ Core rules:
 Available tools (use these exact names):
 - search_destinations
 - get_seasonal_info
-- search_flights
+- list_flights
+- book_flight
+- cancel_flight
 - get_airport_info
-- search_hotels
+- list_hotels
+- book_hotel
+- cancel_hotel
 - get_hotel_categories
 - get_hotel_amenities
 

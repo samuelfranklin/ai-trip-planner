@@ -7,6 +7,8 @@ export async function seedFlights(prisma: PrismaClient) {
   const today = new Date();
   const futureDate = addDays(today, 30);
   const returnDate = addDays(futureDate, 7);
+  const cnfToSfoDepart = new Date('2025-10-01T11:30:00.000Z');
+  const cnfToSfoReturn = new Date('2025-10-10T18:05:00.000Z');
 
   const flights = [
     // Voos Domésticos Brasil
@@ -291,6 +293,126 @@ export async function seedFlights(prisma: PrismaClient) {
       popularityScore: 84,
       comfortScore: 8,
       layoverQuality: 'good',
+    },
+
+    // Voos Especiais - Desafio CNF -> SFO (round-trip)
+    {
+      itineraryId: 'FLT-CNF-SFO-20251001-001',
+      origin: 'CNF',
+      destination: 'SFO',
+      departDate: cnfToSfoDepart,
+      returnDate: cnfToSfoReturn,
+      airline: 'United Airlines',
+      stops: 1,
+      baggageIncluded: true,
+      totalPrice: 4850.00,
+      currency: 'BRL',
+      outboundSegments: [
+        {
+          departure: { airport: 'CNF', time: '08:30', date: '2025-10-01T11:30:00.000Z' },
+          arrival: { airport: 'IAH', time: '13:00', date: '2025-10-01T18:00:00.000Z' },
+          airline: 'United Airlines',
+          flightNumber: 'UA874',
+          duration: 330,
+          aircraft: 'Boeing 767-300',
+        },
+        {
+          departure: { airport: 'IAH', time: '15:05', date: '2025-10-01T20:05:00.000Z' },
+          arrival: { airport: 'SFO', time: '17:40', date: '2025-10-02T00:40:00.000Z' },
+          airline: 'United Airlines',
+          flightNumber: 'UA2093',
+          duration: 275,
+          aircraft: 'Boeing 737 MAX 9',
+        },
+      ],
+      inboundSegments: [
+        {
+          departure: { airport: 'SFO', time: '09:25', date: '2025-10-10T16:25:00.000Z' },
+          arrival: { airport: 'IAH', time: '15:35', date: '2025-10-10T21:35:00.000Z' },
+          airline: 'United Airlines',
+          flightNumber: 'UA2368',
+          duration: 250,
+          aircraft: 'Boeing 737 MAX 9',
+        },
+        {
+          departure: { airport: 'IAH', time: '18:05', date: '2025-10-10T23:05:00.000Z' },
+          arrival: { airport: 'CNF', time: '05:45', date: '2025-10-11T08:45:00.000Z' },
+          airline: 'United Airlines',
+          flightNumber: 'UA875',
+          duration: 520,
+          aircraft: 'Boeing 767-300',
+        },
+      ],
+      popularityScore: 92,
+      comfortScore: 8,
+      layoverQuality: 'good',
+    },
+    {
+      itineraryId: 'FLT-CNF-SFO-20251001-002',
+      origin: 'CNF',
+      destination: 'SFO',
+      departDate: cnfToSfoDepart,
+      returnDate: cnfToSfoReturn,
+      airline: 'LATAM + Delta',
+      stops: 2,
+      baggageIncluded: true,
+      totalPrice: 4580.00,
+      currency: 'BRL',
+      outboundSegments: [
+        {
+          departure: { airport: 'CNF', time: '07:15', date: '2025-10-01T10:15:00.000Z' },
+          arrival: { airport: 'GRU', time: '08:25', date: '2025-10-01T11:25:00.000Z' },
+          airline: 'LATAM Airlines',
+          flightNumber: 'LA3445',
+          duration: 70,
+          aircraft: 'Airbus A321',
+        },
+        {
+          departure: { airport: 'GRU', time: '10:45', date: '2025-10-01T13:45:00.000Z' },
+          arrival: { airport: 'ATL', time: '18:05', date: '2025-10-01T22:05:00.000Z' },
+          airline: 'Delta Air Lines',
+          flightNumber: 'DL104',
+          duration: 500,
+          aircraft: 'Airbus A330-900neo',
+        },
+        {
+          departure: { airport: 'ATL', time: '20:55', date: '2025-10-02T00:55:00.000Z' },
+          arrival: { airport: 'SFO', time: '23:15', date: '2025-10-02T06:15:00.000Z' },
+          airline: 'Delta Air Lines',
+          flightNumber: 'DL2882',
+          duration: 320,
+          aircraft: 'Airbus A321neo',
+        },
+      ],
+      inboundSegments: [
+        {
+          departure: { airport: 'SFO', time: '12:20', date: '2025-10-10T19:20:00.000Z' },
+          arrival: { airport: 'ATL', time: '19:55', date: '2025-10-11T00:55:00.000Z' },
+          airline: 'Delta Air Lines',
+          flightNumber: 'DL1473',
+          duration: 335,
+          aircraft: 'Airbus A321neo',
+        },
+        {
+          departure: { airport: 'ATL', time: '22:45', date: '2025-10-11T03:45:00.000Z' },
+          arrival: { airport: 'GRU', time: '07:55', date: '2025-10-11T10:55:00.000Z' },
+          airline: 'Delta Air Lines',
+          flightNumber: 'DL105',
+          duration: 610,
+          aircraft: 'Airbus A330-900neo',
+        },
+        {
+          departure: { airport: 'GRU', time: '10:40', date: '2025-10-11T13:40:00.000Z' },
+          arrival: { airport: 'CNF', time: '11:55', date: '2025-10-11T14:55:00.000Z' },
+          airline: 'LATAM Airlines',
+          flightNumber: 'LA3450',
+          duration: 75,
+          aircraft: 'Airbus A321',
+        },
+      ],
+      popularityScore: 88,
+      comfortScore: 7,
+      layoverQuality: 'acceptable',
     },
 
     // Voos Internacionais - Europa

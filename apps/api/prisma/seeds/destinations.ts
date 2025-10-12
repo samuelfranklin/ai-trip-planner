@@ -249,6 +249,21 @@ export async function seedDestinations(prisma: PrismaClient) {
       timezone: 'America/New_York',
       categoryNames: ['Metrópole', 'Cultural', 'Compras', 'Luxo'],
     },
+    {
+      name: 'São Francisco',
+      city: 'San Francisco',
+      country: 'United States',
+      countryCode: 'US',
+      description: 'São Francisco encanta com a Golden Gate Bridge, bairros icônicos como Fisherman\'s Wharf e Mission District, tecnologia no Vale do Silício e gastronomia sofisticada.',
+      shortDescription: 'Golden Gate, tecnologia e gastronomia californiana',
+      bestMonths: [4, 5, 9, 10],
+      averageBudget: 1100.00,
+      popularityScore: 92,
+      latitude: 37.774929,
+      longitude: -122.419418,
+      timezone: 'America/Los_Angeles',
+      categoryNames: ['Metrópole', 'Cultural', 'Gastronômico', 'Compras'],
+    },
 
     // Europa
     {
