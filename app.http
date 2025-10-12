@@ -108,6 +108,7 @@ Content-Type: application/json
 - [ ] Frontend: integrar LangGraph Client SDK com streaming e Generative UI (React)
 - [ ] Frontend: construir componentes generativos de cards de voo/hotel com ações (Reservar/Cancelar)
 - [ ] Frontend: adicionar formulários no chat para dados do passageiro/hóspede e validações básicas
+- [x] Frontend: carregar e renderizar imagens hero/galeria nos cards de hotéis e destinos
 - [ ] Frontend: implementar UX de loading, skeletons, toasts de erro e botões de retry
 - [ ] Frontend: garantir acessibilidade básica (aria, foco, suporte teclado)
 - [ ] Frontend: adicionar i18n mínimo (~10 chaves pt-BR/en-US)
