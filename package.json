@@ -11,7 +11,14 @@
     "build:api": "pnpm --filter @ai-trip-planner/api build",
     "build:view": "pnpm --filter @ai-trip-planner/view build",
     "test": "pnpm --recursive test",
-    "lint": "pnpm --recursive lint"
+    "lint": "pnpm --recursive lint",
+    "db:generate": "pnpm --filter @ai-trip-planner/api db:generate",
+    "db:migrate": "pnpm --filter @ai-trip-planner/api db:migrate",
+    "db:migrate:deploy": "pnpm --filter @ai-trip-planner/api db:migrate:deploy",
+    "db:push": "pnpm --filter @ai-trip-planner/api db:push",
+    "db:seed": "pnpm --filter @ai-trip-planner/api db:seed",
+    "db:studio": "pnpm --filter @ai-trip-planner/api db:studio",
+    "db:reset": "pnpm --filter @ai-trip-planner/api db:reset"
   },
   "keywords": [],
   "author": "",

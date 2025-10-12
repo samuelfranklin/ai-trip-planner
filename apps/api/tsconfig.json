@@ -19,6 +19,8 @@
     "allowSyntheticDefaultImports": true,
     "resolveJsonModule": true
   },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist", "prisma"],
 
   "ts-node": {
     "esm": true,
