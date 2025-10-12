@@ -543,6 +543,12 @@ model FlightBooking {
   // Passenger information
   passengerName   String               @db.VarChar(255)
   passengerEmail  String               @db.VarChar(255)
+  passengerPhone  String?              @db.VarChar(30)
+  seatClass       String?              @db.VarChar(20)
+  fareBasis       String?              @db.VarChar(20)
+  adults          Int                  @default(1)
+  specialRequests String?              @db.Text
+  metadata        Json?
 
   // Reference to flight itinerary
   itineraryId     String               @db.VarChar(100)
@@ -554,6 +560,7 @@ model FlightBooking {
 
   // Timestamps
   createdAt       DateTime             @default(now())
+  ticketedAt      DateTime             @default(now())
   updatedAt       DateTime             @updatedAt
   canceledAt      DateTime?
 
@@ -582,6 +589,7 @@ model HotelBooking {
   // Guest information
   guestName       String              @db.VarChar(255)
   guestEmail      String              @db.VarChar(255)
+  guestPhone      String?             @db.VarChar(30)
 
   // Reference to hotel
   hotelId         String              @db.VarChar(100)
@@ -592,9 +600,14 @@ model HotelBooking {
   checkout        DateTime            @db.Date
   rooms           Int                 @default(1)
   nights          Int
+  adults          Int                 @default(1)
+  children        Int                 @default(0)
+  specialRequests String?             @db.Text
+  metadata        Json?
 
   // Timestamps
   createdAt       DateTime            @default(now())
+  confirmedAt     DateTime            @default(now())
   updatedAt       DateTime            @updatedAt
   canceledAt      DateTime?
 
