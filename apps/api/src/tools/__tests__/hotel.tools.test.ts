@@ -32,20 +32,24 @@ const prismaMock = prisma as unknown as PrismaMock;
 describe('hotel tools', () => {
   let originalConsoleError: typeof console.error;
   let consoleErrorMock: jest.Mock;
+  let mathRandomSpy: jest.SpyInstance<number, []>;
 
   beforeAll(() => {
     originalConsoleError = console.error;
     consoleErrorMock = jest.fn();
     console.error = consoleErrorMock as unknown as typeof console.error;
+    mathRandomSpy = jest.spyOn(Math, 'random').mockReturnValue(0.9);
   });
 
   beforeEach(() => {
     jest.clearAllMocks();
     consoleErrorMock.mockReset();
+    mathRandomSpy.mockReturnValue(0.9);
   });
 
   afterAll(() => {
     console.error = originalConsoleError;
+    mathRandomSpy.mockRestore();
   });
 
   describe('listHotelsTool', () => {
@@ -103,6 +107,52 @@ describe('hotel tools', () => {
       expect(payload.suggestions).toContain('Use book_hotel to reserve a stay by providing hotelId, dates, and guest info');
     });
 
+    it('emits structured payload compatible with generative UI cards', async () => {
+      (prismaMock.hotel.findMany as jest.Mock).mockResolvedValueOnce([
+        {
+          hotelId: 'hotel-2',
+          name: 'Praia Azul Resort',
+          city: 'Fortaleza',
+          address: 'Av. Beira Mar, 200',
+          nightlyRate: 850,
+          currency: 'BRL',
+          nightlyLabel: null,
+          total: null,
+          rating: 4.5,
+          reviewCount: 540,
+          heroImageUrl: 'https://example.com/hero.jpg',
+          galleryImageUrls: ['https://example.com/1.jpg', 'https://example.com/2.jpg'],
+          highlights: ['piscina', 'vista-mar'],
+          refundable: true,
+          breakfastIncluded: true,
+          cancellationPolicy: 'Free cancellation until 24h before check-in',
+          categories: [],
+        },
+      ]);
+
+      const result = await listHotelsTool.invoke({
+        city: 'Fortaleza',
+        checkin: '2025-12-10',
+        checkout: '2025-12-15',
+        adults: 2,
+      });
+
+      const payload = JSON.parse(result);
+
+      expect(payload.source).toBe('hotels');
+      expect(payload.data).toHaveLength(1);
+      expect(payload.data[0]).toMatchObject({
+        hotelId: 'hotel-2',
+        heroImageUrl: 'https://example.com/hero.jpg',
+        galleryImageUrls: ['https://example.com/1.jpg', 'https://example.com/2.jpg'],
+        summary: expect.objectContaining({
+          checkin: '2025-12-10',
+          checkout: '2025-12-15',
+          nights: 5,
+        }),
+      });
+    });
+
     it('returns guidance when no hotels match', async () => {
       (prismaMock.hotel.findMany as jest.Mock).mockResolvedValueOnce([]);
 
@@ -116,6 +166,31 @@ describe('hotel tools', () => {
       expect(payload.data).toEqual([]);
       expect(payload.message).toMatch(/no hotels found/i);
       expect(payload.suggestions).toContain('Broaden the price range or remove required amenities');
+    });
+
+    it('returns curated fallback hotels when database has no matches for San Francisco', async () => {
+      (prismaMock.hotel.findMany as jest.Mock).mockResolvedValueOnce([]);
+
+      const result = await listHotelsTool.invoke({
+        city: 'San Francisco',
+        checkin: '2025-10-01',
+        checkout: '2025-10-05',
+        rooms: 1,
+      });
+
+      const payload = JSON.parse(result);
+
+      expect(payload.source).toBe('hotels');
+      expect(payload.data.length).toBeGreaterThanOrEqual(1);
+      expect(payload.data[0]).toMatchObject({
+        city: 'San Francisco',
+        summary: expect.objectContaining({
+          checkin: '2025-10-01',
+          checkout: '2025-10-05',
+          nights: 4,
+        }),
+      });
+      expect(payload.suggestions).toContain('Use book_hotel para confirmar a hospedagem informando hotelId e dados do hóspede');
     });
 
     it('returns friendly fallback on errors', async () => {

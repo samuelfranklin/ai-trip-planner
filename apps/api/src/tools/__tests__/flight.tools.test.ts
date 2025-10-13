@@ -141,6 +141,35 @@ describe('flight tools', () => {
     });
   });
 
+  it('falls back to structured itineraries for known corridors when DB has no flights', async () => {
+    (prismaMock.airport.findMany as jest.Mock)
+      .mockResolvedValueOnce([{ iataCode: 'CNF', name: 'Tancredo Neves', city: 'Belo Horizonte' }])
+      .mockResolvedValueOnce([]);
+    (prismaMock.flightItinerary.findMany as jest.Mock).mockResolvedValueOnce([]);
+
+    const result = await listFlightsTool.invoke({
+      origin: 'Belo Horizonte (CNF)',
+      destination: 'San Francisco (SFO)',
+      departDate: '2025-10-01',
+      returnDate: '2025-10-10',
+      adults: 2,
+    });
+
+    const payload = JSON.parse(result);
+
+    expect(payload.source).toBe('flights');
+    expect(payload.data).toHaveLength(2);
+    expect(payload.data[0].summary).toMatchObject({
+      origin: expect.objectContaining({ code: 'CNF', city: 'Belo Horizonte' }),
+      destination: expect.objectContaining({ code: 'SFO', city: 'San Francisco' }),
+      departDate: '2025-10-01',
+      returnDate: '2025-10-10',
+      adults: 2,
+    });
+    expect(Array.isArray(payload.data[0].outbound)).toBe(true);
+    expect(payload.data[0].outbound.length).toBeGreaterThan(0);
+  });
+
   describe('bookFlightTool', () => {
     it('persists extended metadata and returns a ticketed booking', async () => {
       (prismaMock.flightItinerary.findUnique as jest.Mock).mockResolvedValueOnce({

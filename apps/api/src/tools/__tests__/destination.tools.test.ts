@@ -87,6 +87,59 @@ describe('destination tools', () => {
       expect(payload.suggestions).toContain('Ask get_seasonal_info for the best months to visit');
     });
 
+    it('tokenizes natural language queries to find relevant destinations', async () => {
+      (prismaMock.destination.findMany as jest.Mock).mockResolvedValueOnce([
+        {
+          id: 'dest-2',
+          name: 'Salvador',
+          city: 'Salvador',
+          country: 'Brasil',
+          shortDescription: null,
+          description: 'Verão vibrante com festas e praias no nordeste brasileiro.',
+          bestMonths: [12, 1, 2],
+          averageBudget: 1200,
+          popularityScore: 88,
+          categories: [],
+        },
+      ]);
+
+      const query = 'Quais destinos você recomenda no Brasil para dezembro?';
+      const result = await searchDestinationsTool.invoke({ query });
+      const payload = JSON.parse(result);
+
+      expect(prismaMock.destination.findMany).toHaveBeenCalled();
+      const [callArgs] = (prismaMock.destination.findMany as jest.Mock).mock.calls.at(-1) ?? [];
+      expect(callArgs.where.OR).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ country: expect.objectContaining({ contains: 'brasil', mode: 'insensitive' }) }),
+          expect.objectContaining({ description: expect.objectContaining({ contains: 'dezembro', mode: 'insensitive' }) }),
+        ]),
+      );
+
+      expect(payload.source).toBe('destinations');
+      expect(payload.data[0]).toMatchObject({
+        name: 'Salvador',
+        country: 'Brasil',
+      });
+    });
+
+    it('returns curated fallback destinations when database is empty', async () => {
+      (prismaMock.destination.findMany as jest.Mock).mockResolvedValueOnce([]);
+
+      const result = await searchDestinationsTool.invoke({
+        query: 'Quais destinos você recomenda no Brasil para dezembro?',
+      });
+
+      const payload = JSON.parse(result);
+
+      expect(payload.source).toBe('destinations');
+      expect(payload.data.length).toBeGreaterThanOrEqual(1);
+      expect(payload.data[0]).toMatchObject({
+        country: 'Brasil',
+      });
+      expect(payload.suggestions).toContain('Use list_hotels para explorar estadas no destino selecionado');
+    });
+
     it('returns friendly guidance when no destinations match', async () => {
       (prismaMock.destination.findMany as jest.Mock).mockResolvedValueOnce([]);
 
