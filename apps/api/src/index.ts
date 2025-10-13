@@ -1,6 +1,7 @@
 import express from "express";
+import cors from "cors";
 import { randomUUID } from "crypto";
-import { AIMessage, type BaseMessage, HumanMessage } from "@langchain/core/messages";
+import { type BaseMessage, HumanMessage } from "@langchain/core/messages";
 import swaggerUi from "swagger-ui-express";
 import logger from "./config/logger";
 import { env } from "./config/env";
@@ -10,6 +11,14 @@ import openApiDocument from "./docs/openapi.json" assert { type: "json" };
 
 const app = express();
 const PORT = env.PORT;
+
+const corsMiddleware = cors({
+  origin: env.CLIENT_ORIGIN,
+  methods: ["GET", "POST", "OPTIONS"],
+  allowedHeaders: ["Content-Type"],
+});
+
+app.use(corsMiddleware);
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -119,51 +128,30 @@ app.post("/agent/stream", async (req, res) => {
     const history = await conversationStore.get(conversationId);
     const userMessage = new HumanMessage(trimmedMessage);
 
-    const stream = await agent.stream(
-      {
-        messages: [...history, userMessage],
-      },
-      {
-        streamMode: ["messages"],
-        signal: abortController.signal,
-      },
-    );
+    const result = (await agent.invoke({
+      messages: [...history, userMessage],
+    })) as { messages: BaseMessage[] };
 
-    let accumulatedText = "";
-    for await (const chunk of stream) {
-      const nextText = extractAssistantText(chunk);
-      if (typeof nextText !== "string") {
-        continue;
-      }
+    const assistantMessage = result.messages[result.messages.length - 1];
+    await conversationStore.set(conversationId, result.messages);
 
-      if (nextText.length === 0 || nextText === accumulatedText) {
-        continue;
-      }
+    const responseText = normalizeMessageContent(assistantMessage?.content) ?? "";
 
-      const delta = nextText.slice(accumulatedText.length);
-      accumulatedText = nextText;
-
+    if (responseText.length > 0) {
       sendChunk({
         type: "delta",
         data: {
-          textDelta: delta,
-          fullText: accumulatedText,
+          textDelta: responseText,
+          fullText: responseText,
         },
       });
     }
-
-    if (abortController.signal.aborted) {
-      return;
-    }
-
-    const assistantMessage = new AIMessage({ content: accumulatedText });
-    await conversationStore.set(conversationId, [...history, userMessage, assistantMessage]);
 
     sendChunk({
       type: "complete",
       data: {
         conversationId,
-        text: accumulatedText,
+        text: responseText,
       },
     });
   } catch (error) {
@@ -226,36 +214,6 @@ function normalizeMessageContent(content?: BaseMessage["content"]): string | und
   return undefined;
 }
 
-function extractAssistantText(chunk: unknown): string | undefined {
-  if (!Array.isArray(chunk) || chunk.length < 3) {
-    return undefined;
-  }
-
-  const [, kind, payload] = chunk as [unknown, unknown, unknown];
-  if (kind !== "messages" || !Array.isArray(payload) || payload.length === 0) {
-    return undefined;
-  }
-
-  const entry = payload[0] as Record<string, unknown>;
-  if (!entry) {
-    return undefined;
-  }
-
-  const getType = Reflect.get(entry, "_getType") as (() => string) | undefined;
-  const candidateType =
-    typeof getType === "function"
-      ? getType.call(entry)
-      : typeof Reflect.get(entry, "type") === "string"
-        ? (Reflect.get(entry, "type") as string)
-        : undefined;
-
-  if (candidateType !== "ai") {
-    return undefined;
-  }
-
-  const content = Reflect.get(entry, "content") as BaseMessage["content"] | undefined;
-  return normalizeMessageContent(content);
-}
 
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
