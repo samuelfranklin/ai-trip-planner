@@ -8,6 +8,8 @@ export interface AgentStructuredPayload {
   suggestions?: string[];
   nextSteps?: string[];
   error?: boolean;
+  code?: string;
+  retryable?: boolean;
 }
 
 export interface ChatMessage {
@@ -15,7 +17,7 @@ export interface ChatMessage {
   role: ChatRole;
   text?: string;
   structured?: AgentStructuredPayload[];
-  status: 'thinking' | 'complete' | 'error';
+  status: 'thinking' | 'streaming' | 'complete' | 'error';
   createdAt: number;
 }
 
@@ -92,3 +94,86 @@ export interface DestinationOption {
   averageBudgetLabel?: string | null;
   categories?: Array<{ id?: string | null; name?: string | null; slug?: string | null }> | null;
 }
+
+export interface PassengerContact {
+  fullName?: string | null;
+  email?: string | null;
+  phone?: string | null;
+}
+
+export interface GuestContact {
+  fullName?: string | null;
+  email?: string | null;
+  phone?: string | null;
+}
+
+export interface FlightBookingConfirmation {
+  pnr: string;
+  status?: string | null;
+  total?: number | null;
+  currency?: string | null;
+  totalLabel?: string | null;
+  adults?: number | null;
+  seatClass?: string | null;
+  fareBasis?: string | null;
+  specialRequests?: string | null;
+  metadata?: Record<string, unknown> | null;
+  itineraryId?: string | null;
+  passenger?: PassengerContact | null;
+}
+
+export interface HotelBookingConfirmation {
+  reservationId: string;
+  status?: string | null;
+  total?: number | null;
+  currency?: string | null;
+  totalLabel?: string | null;
+  rooms?: number | null;
+  nights?: number | null;
+  adults?: number | null;
+  children?: number | null;
+  specialRequests?: string | null;
+  metadata?: Record<string, unknown> | null;
+  hotelId?: string | null;
+  checkin?: string | null;
+  checkout?: string | null;
+  guest?: GuestContact | null;
+}
+
+export interface FlightCancellationInfo {
+  pnr: string;
+  status?: string | null;
+}
+
+export interface HotelCancellationInfo {
+  reservationId: string;
+  status?: string | null;
+}
+
+export type AgentStreamEvent =
+  | {
+      type: 'meta';
+      data: {
+        conversationId: string;
+      };
+    }
+  | {
+      type: 'delta';
+      data: {
+        textDelta: string;
+        fullText: string;
+      };
+    }
+  | {
+      type: 'complete';
+      data: {
+        conversationId: string;
+        text: string;
+      };
+    }
+  | {
+      type: 'error';
+      data: {
+        message: string;
+      };
+    };
