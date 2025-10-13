@@ -1,9 +1,10 @@
 import type { ChangeEvent, FormEvent, KeyboardEvent } from 'react';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import './App.css';
-import type { ChatAction, ChatMessage } from './types';
+import './App.scss';
+import type { AgentStreamEvent, ChatAction, ChatMessage } from './types';
 import { resolveApiUrl, createConversationId } from './lib/api';
 import { parseAgentResponse } from './lib/parseAgentResponse';
+import { streamAgentResponse } from './lib/streaming';
 import { MessageBubble } from './components/chat/message-bubble';
 import { Button } from './components/ui/button';
 import { TextArea } from './components/ui/textarea';
@@ -45,9 +46,12 @@ export default function App() {
     if (!node) {
       return;
     }
+    const maxHeight = 160;
     node.style.height = 'auto';
-    const nextHeight = Math.min(node.scrollHeight, 160);
+    const currentScrollHeight = node.scrollHeight;
+    const nextHeight = Math.min(currentScrollHeight, maxHeight);
     node.style.height = `${nextHeight}px`;
+    node.style.overflowY = currentScrollHeight > maxHeight ? 'auto' : 'hidden';
   }
 
   const handleInputChange = (event: ChangeEvent<HTMLTextAreaElement>) => {
@@ -67,6 +71,98 @@ export default function App() {
     void sendMessage();
   };
 
+  const updateAssistantMessage = (assistantId: string, updater: (message: ChatMessage) => ChatMessage) => {
+    setMessages((prev) => prev.map((message) => (message.id === assistantId ? updater(message) : message)));
+  };
+
+  const isFallbackStatus = (status: number) => status === 404 || status === 405 || status === 501;
+
+  const runLegacyConversation = async (
+    baseConversationId: string,
+    message: string,
+    assistantId: string,
+  ): Promise<{ ok: boolean; conversationId?: string }> => {
+    const response = await fetch(resolveApiUrl('/agent'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ conversationId: baseConversationId, message }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Request failed with status ${response.status}`);
+    }
+
+    const payload = await response.json();
+    const nextConversationId =
+      typeof payload.conversationId === 'string' ? payload.conversationId : baseConversationId;
+
+    const parsed = parseAgentResponse(payload.response);
+
+    updateAssistantMessage(assistantId, (msg) => ({
+      ...msg,
+      status: 'complete',
+      text: parsed.text || 'Tudo pronto! Veja os detalhes abaixo.',
+      structured: parsed.payloads,
+    }));
+
+    return { ok: true, conversationId: nextConversationId };
+  };
+
+  const attemptStreamingConversation = async ({
+    baseConversationId,
+    message,
+    assistantId,
+  }: {
+    baseConversationId: string;
+    message: string;
+    assistantId: string;
+  }): Promise<{ ok: boolean; mode: 'stream' | 'fallback'; conversationId?: string }> => {
+    const streamingResult = await streamAgentResponse(
+      {
+        conversationId: baseConversationId,
+        message,
+      },
+      {
+        onEvent: (event: AgentStreamEvent) => {
+          if (event.type === 'delta') {
+            updateAssistantMessage(assistantId, (msg) => ({
+              ...msg,
+              status: 'streaming',
+              text: event.data.fullText,
+            }));
+          } else if (event.type === 'error') {
+            updateAssistantMessage(assistantId, (msg) => ({
+              ...msg,
+              status: 'error',
+              text: undefined,
+              structured: [],
+            }));
+          } else if (event.type === 'meta') {
+            setConversationId(event.data.conversationId);
+          }
+        },
+      },
+    );
+
+    if (streamingResult.ok) {
+      const parsed = parseAgentResponse(streamingResult.text ?? '');
+      updateAssistantMessage(assistantId, (msg) => ({
+        ...msg,
+        status: 'complete',
+        text: parsed.text || 'Tudo pronto! Veja os detalhes abaixo.',
+        structured: parsed.payloads,
+      }));
+      return { ok: true, mode: 'stream', conversationId: streamingResult.conversationId };
+    }
+
+    if (typeof streamingResult.status === 'number' && isFallbackStatus(streamingResult.status)) {
+      const legacyResult = await runLegacyConversation(baseConversationId, message, assistantId);
+      return { ok: legacyResult.ok, mode: 'fallback', conversationId: legacyResult.conversationId };
+    }
+
+    return { ok: false, mode: 'stream' };
+  };
+
   const sendMessage = async () => {
     const trimmed = inputValue.trim();
     if (!trimmed || isSending) {
@@ -82,34 +178,30 @@ export default function App() {
     adjustComposerHeight();
 
     try {
-      const response = await fetch(resolveApiUrl('/agent'), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ conversationId, message: trimmed }),
+      const streamingResult = await attemptStreamingConversation({
+        baseConversationId: conversationId,
+        message: trimmed,
+        assistantId: pendingAssistant.id,
       });
 
-      if (!response.ok) {
-        throw new Error(`Request failed with status ${response.status}`);
+      if (streamingResult?.mode === 'stream' && streamingResult.ok) {
+        setConversationId(streamingResult.conversationId ?? conversationId);
+      } else if (streamingResult?.mode === 'fallback' && streamingResult.ok) {
+        setConversationId(streamingResult.conversationId ?? conversationId);
+      } else if (!streamingResult?.ok) {
+        setMessages((prev) =>
+          prev.map((message) =>
+            message.id === pendingAssistant.id
+              ? {
+                  ...message,
+                  status: 'error',
+                  text: undefined,
+                  structured: [],
+                }
+              : message,
+          ),
+        );
       }
-
-      const payload = await response.json();
-      const nextConversationId = typeof payload.conversationId === 'string' ? payload.conversationId : conversationId;
-      setConversationId(nextConversationId);
-
-      const parsed = parseAgentResponse(payload.response);
-
-      setMessages((prev) =>
-        prev.map((message) =>
-          message.id === pendingAssistant.id
-            ? {
-                ...message,
-                status: 'complete',
-                text: parsed.text || 'Tudo pronto! Veja os detalhes abaixo.',
-                structured: parsed.payloads,
-              }
-            : message,
-        ),
-      );
     } catch (error) {
       console.error('Falha ao enviar mensagem', error);
       setMessages((prev) =>
@@ -177,18 +269,25 @@ export default function App() {
         </div>
         <footer className="chat-composer">
           <form onSubmit={handleSubmit} className="chat-composer__form">
-            <TextArea
-              ref={composerRef}
-              value={inputValue}
-              onChange={handleInputChange}
-              onKeyDown={handleComposerKeyDown}
-              placeholder="Conte seus planos: datas, destinos, estilo de viagem..."
-              disabled={isComposerDisabled}
-              aria-label="Envie uma mensagem para o concierge"
-            />
-            <div className="chat-composer__actions">
-              <Button type="submit" disabled={isComposerDisabled || inputValue.trim().length === 0}>
-                {isSending ? 'Enviando...' : 'Enviar'}
+            <div className="chat-composer__field">
+              <div className="chat-composer__input">
+                <TextArea
+                  ref={composerRef}
+                  value={inputValue}
+                  onChange={handleInputChange}
+                  onKeyDown={handleComposerKeyDown}
+                  placeholder="Conte seus planos: datas, destinos, estilo de viagem..."
+                  disabled={isComposerDisabled}
+                  aria-label="Envie uma mensagem para o concierge"
+                />
+              </div>
+              <Button
+                className="chat-composer__send"
+                type="submit"
+                disabled={isComposerDisabled || inputValue.trim().length === 0}
+                aria-label="Enviar mensagem"
+              >
+                {isSending ? '...' : '↑'}
               </Button>
             </div>
           </form>
