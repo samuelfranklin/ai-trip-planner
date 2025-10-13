@@ -1,5 +1,6 @@
 import { tool } from '@langchain/core/tools';
 import { z } from 'zod';
+import { Prisma } from '../generated/prisma';
 import { prisma } from '../lib/prisma';
 
 const BOOKING_MIN_DELAY_MS = 300;
@@ -357,7 +358,7 @@ export const bookHotelTool = tool(
           currency: hotel.currency ?? 'BRL',
           guestName: guest.fullName,
           guestEmail: guest.email,
-          guestPhone: guest.phone,
+          guestPhone: guest.phone ?? null,
           hotelId: hotel.hotelId,
           checkin: startOfDay(checkinDate),
           checkout: endOfDay(checkoutDate),
@@ -365,8 +366,8 @@ export const bookHotelTool = tool(
           nights,
           adults,
           children,
-          specialRequests,
-          metadata,
+          specialRequests: specialRequests ?? null,
+          ...(typeof metadata !== 'undefined' ? { metadata: metadata as Prisma.InputJsonValue } : {}),
         },
       });
 

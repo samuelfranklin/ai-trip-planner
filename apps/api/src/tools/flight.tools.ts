@@ -1,5 +1,6 @@
 import { tool } from '@langchain/core/tools';
 import { z } from 'zod';
+import { Prisma } from '../generated/prisma';
 import { prisma } from '../lib/prisma';
 
 const BOOKING_MIN_DELAY_MS = 300;
@@ -388,12 +389,12 @@ export const bookFlightTool = tool(
           currency: itinerary.currency,
           passengerName: passenger.fullName,
           passengerEmail: passenger.email,
-          passengerPhone: passenger.phone,
+          passengerPhone: passenger.phone ?? null,
           adults,
-          seatClass,
-          fareBasis,
-          specialRequests,
-          metadata,
+          seatClass: seatClass ?? null,
+          fareBasis: fareBasis ?? null,
+          specialRequests: specialRequests ?? null,
+          ...(typeof metadata !== 'undefined' ? { metadata: metadata as Prisma.InputJsonValue } : {}),
           itineraryId: itinerary.itineraryId,
         },
       });
