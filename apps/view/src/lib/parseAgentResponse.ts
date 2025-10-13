@@ -147,6 +147,12 @@ function normalizePayload(input: unknown): AgentStructuredPayload {
   if (typeof candidate.error === 'boolean') {
     payload.error = candidate.error;
   }
+  if (typeof candidate.code === 'string') {
+    payload.code = candidate.code;
+  }
+  if (typeof candidate.retryable === 'boolean') {
+    payload.retryable = candidate.retryable;
+  }
   if (Array.isArray(candidate.suggestions)) {
     payload.suggestions = candidate.suggestions.filter((item): item is string => typeof item === 'string');
   }
@@ -159,4 +165,3 @@ function normalizePayload(input: unknown): AgentStructuredPayload {
 
   return payload;
 }
-

@@ -13,13 +13,11 @@ export function MessageBubble({ message, onAction }: Readonly<MessageBubbleProps
   const avatarLabel = isAssistant ? 'AI' : 'Você';
 
   return (
-    <div className={wrapperClass} data-role={message.role}>
+    <div className={wrapperClass} data-role={message.role} data-status={message.status}>
       <div className="chat-avatar" aria-hidden="true">
         {avatarLabel.slice(0, 2).toUpperCase()}
       </div>
-      <div className={bubbleClass}>
-        {renderMessageContent(message, onAction)}
-      </div>
+      <div className={bubbleClass}>{renderMessageContent(message, onAction)}</div>
     </div>
   );
 }
