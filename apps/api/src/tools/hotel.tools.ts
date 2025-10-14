@@ -269,7 +269,7 @@ export const listHotelsTool = tool(
         const normalizedCity = city.trim().toLowerCase();
         const fallback = FALLBACK_HOTELS[normalizedCity];
         if (fallback) {
-          log.warn('returning fallback hotels', { city: normalizedCity });
+          log.warn({ city: normalizedCity }, 'returning fallback hotels');
           const fallbackData = fallback.data.map((hotel) => ({
             ...hotel,
             summary: {
@@ -293,7 +293,7 @@ export const listHotelsTool = tool(
           );
         }
 
-        log.warn('no hotels matched query', { city, checkin, checkout });
+        log.warn({ city, checkin, checkout }, 'no hotels matched query');
         return JSON.stringify(
           {
             data: [],
@@ -370,7 +370,7 @@ export const listHotelsTool = tool(
         null,
         2,
       );
-      log.info('list_hotels returning DB results', { count: formatted.length, city });
+      log.info({ count: formatted.length, city }, 'list_hotels returning DB results');
       return responsePayload;
     } catch (error) {
       log.error({ err: error }, 'list_hotels failed');

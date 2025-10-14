@@ -2,10 +2,12 @@ packages:
   - apps/*
 
 onlyBuiltDependencies:
+  - '@parcel/watcher'
   - '@prisma/client'
   - '@prisma/engines'
   - '@scarf/scarf'
   - '@tailwindcss/oxide'
   - esbuild
   - prisma
+  - sharp
   - unrs-resolver

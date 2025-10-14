@@ -21,6 +21,10 @@ This package exposes the Express server that wraps the LangGraph travel agent. I
 	 ```
 4. Browse to `http://localhost:3000/docs` for Swagger UI or `http://localhost:3000/openapi.json` for the raw OpenAPI document.
 
+### CORS configuration
+
+The server accepts browser requests from the origins listed in the `CLIENT_ORIGINS` environment variable (comma separated). When unset, it falls back to common Vite defaults: `http://localhost:5173`, `http://127.0.0.1:5173`, and wildcard entries for `http://localhost:*` / `http://127.0.0.1:*` so any dev port is accepted. Override this value in `apps/api/.env` if you serve the frontend from a different host or port. The legacy `CLIENT_ORIGIN` variable is still honoured for compatibility.
+
 ### Available Endpoints
 
 | Method | Path              | Description                                    |

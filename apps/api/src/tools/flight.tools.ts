@@ -258,12 +258,18 @@ function normalizeAirportQuery(term: string): string {
   const upper = term.toUpperCase();
   const parenMatch = upper.match(/\(([A-Z]{3})\)/);
   if (parenMatch) {
-    return parenMatch[1];
+    const capture = parenMatch[1];
+    if (capture) {
+      return capture;
+    }
   }
 
   const allMatches = upper.match(/[A-Z]{3}/g);
   if (allMatches && allMatches.length > 0) {
-    return allMatches[allMatches.length - 1];
+    const lastMatch = allMatches[allMatches.length - 1];
+    if (lastMatch) {
+      return lastMatch;
+    }
   }
 
   return upper
@@ -338,7 +344,7 @@ export const listFlightsTool = tool(
       const destinationCode = destinationAirports[0]?.iataCode ?? normalizeAirportQuery(destination);
 
       if (originAirports.length === 0) {
-        log.warn('no origin airports matched query', { origin });
+        log.warn({ origin }, 'no origin airports matched query');
         return JSON.stringify(
           {
             data: [],
@@ -358,7 +364,7 @@ export const listFlightsTool = tool(
       if (destinationAirports.length === 0) {
         const fallbackItineraries = buildFallbackItineraries(`${originCode}-${destinationCode}`, departDate, returnDate, adults);
         if (fallbackItineraries && fallbackItineraries.length > 0) {
-          log.warn('using fallback itineraries due to missing destination airports', { corridor: `${originCode}-${destinationCode}` });
+          log.warn({ corridor: `${originCode}-${destinationCode}` }, 'using fallback itineraries due to missing destination airports');
           return JSON.stringify(
             {
               data: fallbackItineraries,
@@ -459,7 +465,7 @@ export const listFlightsTool = tool(
       if (itineraries.length === 0) {
         const fallbackItineraries = buildFallbackItineraries(`${originCode}-${destinationCode}`, departDate, returnDate, adults);
         if (fallbackItineraries && fallbackItineraries.length > 0) {
-          log.warn('using fallback itineraries due to empty DB results', { corridor: `${originCode}-${destinationCode}` });
+          log.warn({ corridor: `${originCode}-${destinationCode}` }, 'using fallback itineraries due to empty DB results');
           return JSON.stringify(
             {
               data: fallbackItineraries,
@@ -532,7 +538,7 @@ export const listFlightsTool = tool(
         null,
         2,
       );
-      log.info('list_flights returning itineraries', { count: formatted.length, corridor: `${originCode}-${destinationCode}` });
+      log.info({ count: formatted.length, corridor: `${originCode}-${destinationCode}` }, 'list_flights returning itineraries');
       return responsePayload;
     } catch (error) {
       log.error({ err: error }, 'list_flights failed');

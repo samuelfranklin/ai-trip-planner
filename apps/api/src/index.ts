@@ -9,14 +9,30 @@ import { agent } from "./agent";
 import { conversationStore } from "./lib/conversation-store";
 import openApiDocument from "./docs/openapi.json" assert { type: "json" };
 import { listFlightsTool } from "./tools/flight.tools";
-import { searchDestinationsTool, extractSearchTokens, resolveDestinationFallback } from "./tools/destination.tools";
+import {
+  searchDestinationsTool,
+  extractSearchTokens,
+  resolveDestinationFallback,
+} from "./tools/destination.tools";
 import { listHotelsTool } from "./tools/hotel.tools";
+import { threadsRouter } from "./routes/threads.js";
+import { langGraphStreamRouter } from "./routes/langgraph.stream.js";
 
 const app = express();
 const PORT = env.PORT;
 
+const allowAllOrigins = env.CLIENT_ORIGINS.includes("*");
+const originMatchers = env.CLIENT_ORIGINS.filter((origin) => origin !== "*").map(createOriginMatcher);
+
 const corsMiddleware = cors({
-  origin: env.CLIENT_ORIGIN,
+  origin(origin, callback) {
+    if (allowAllOrigins || !origin || isAllowedOrigin(origin, originMatchers)) {
+      callback(null, true);
+      return;
+    }
+    logger.warn({ origin, allowed: env.CLIENT_ORIGINS }, "cors origin rejected");
+    callback(new Error(`Origin ${origin} is not allowed by CORS`));
+  },
   methods: ["GET", "POST", "OPTIONS"],
   allowedHeaders: ["Content-Type"],
 });
@@ -30,6 +46,9 @@ app.use("/docs", swaggerUi.serve, swaggerUi.setup(openApiDocument));
 app.get("/openapi.json", (_req, res) => {
   res.json(openApiDocument);
 });
+
+app.use("/threads", threadsRouter);
+app.use("/langgraph", langGraphStreamRouter);
 
 app.get("/health", (req, res) => {
   res.send("OK - Server is healthy");
@@ -53,7 +72,7 @@ app.post("/agent", async (req, res) => {
     }
 
     const trimmedMessage = incomingMessage.trim();
-    requestLog.info("agent request received", { messageLength: trimmedMessage.length, resetConversation: resetConversation === true });
+    requestLog.info({ messageLength: trimmedMessage.length, resetConversation: resetConversation === true }, "agent request received");
 
     let conversationId =
       typeof providedConversationId === "string" && providedConversationId.trim().length > 0
@@ -61,7 +80,7 @@ app.post("/agent", async (req, res) => {
         : randomUUID();
 
     if (resetConversation === true) {
-      requestLog.info("conversation reset requested", { conversationId });
+      requestLog.info({ conversationId }, "conversation reset requested");
       await conversationStore.clear(conversationId);
     }
 
@@ -78,7 +97,7 @@ app.post("/agent", async (req, res) => {
 
     const response = normalizeMessageContent(lastMessage?.content) ?? "Sem resposta";
 
-    requestLog.info("agent response generated", { conversationId, responseLength: response.length });
+    requestLog.info({ conversationId, responseLength: response.length }, "agent response generated");
     res.json({ conversationId, response });
   } catch (error: any) {
     logger.error({ err: error }, "agent endpoint failed");
@@ -123,7 +142,7 @@ app.post("/agent/stream", async (req, res) => {
     }
 
     const trimmedMessage = incomingMessage.trim();
-    requestLog.info("stream request received", { messageLength: trimmedMessage.length, resetConversation: resetConversation === true });
+    requestLog.info({ messageLength: trimmedMessage.length, resetConversation: resetConversation === true }, "stream request received");
 
     let conversationId =
       typeof providedConversationId === "string" && providedConversationId.trim().length > 0
@@ -140,10 +159,10 @@ app.post("/agent/stream", async (req, res) => {
     }
 
     sendChunk({ type: "meta", data: { conversationId } });
-    requestLog.debug("stream meta chunk sent", { conversationId });
+    requestLog.debug({ conversationId }, "stream meta chunk sent");
 
     if (resetConversation === true) {
-      requestLog.info("stream reset requested", { conversationId });
+      requestLog.info({ conversationId }, "stream reset requested");
       await conversationStore.clear(conversationId);
     }
 
@@ -167,7 +186,20 @@ app.post("/agent/stream", async (req, res) => {
       .map((message) => normalizeMessageContent(message.content) ?? "")
       .filter((segment) => segment.trim().length > 0);
 
-    let combinedText = [responseText, ...toolSegments]
+    // BUG FIX #3: Ensure JSON tool responses are properly formatted
+    const formattedToolSegments = toolSegments.map((segment) => {
+      try {
+        // Try to parse as JSON
+        const parsed = JSON.parse(segment);
+        // If successful, reformat with proper indentation
+        return JSON.stringify(parsed, null, 2);
+      } catch {
+        // If not valid JSON, return as-is
+        return segment;
+      }
+    });
+
+    let combinedText = [responseText, ...formattedToolSegments]
       .map((segment) => segment.trim())
       .filter((segment) => segment.length > 0)
       .join("\n\n");
@@ -175,13 +207,21 @@ app.post("/agent/stream", async (req, res) => {
     if (!/"source"\s*:\s*"/.test(combinedText)) {
       const autoFallback = await tryAutoFallback(trimmedMessage);
       if (autoFallback) {
-        requestLog.warn("auto fallback executed for message", { fallbackLength: autoFallback.length });
-        combinedText = [responseText, autoFallback].map((segment) => segment.trim()).filter(Boolean).join("\n\n");
+        requestLog.warn({ fallbackLength: autoFallback.length }, "auto fallback executed for message");
+        // BUG FIX #3: Format fallback JSON properly too
+        let formattedFallback = autoFallback;
+        try {
+          const parsed = JSON.parse(autoFallback);
+          formattedFallback = JSON.stringify(parsed, null, 2);
+        } catch {
+          // Keep as-is if not valid JSON
+        }
+        combinedText = [responseText, formattedFallback].map((segment) => segment.trim()).filter(Boolean).join("\n\n");
       }
     }
 
     if (combinedText.length > 0) {
-      requestLog.info("stream delta generated", { conversationId, textLength: combinedText.length, toolSegments: toolSegments.length });
+      requestLog.info({ conversationId, textLength: combinedText.length, toolSegments: toolSegments.length }, "stream delta generated");
       sendChunk({
         type: "delta",
         data: {
@@ -198,7 +238,7 @@ app.post("/agent/stream", async (req, res) => {
         text: combinedText,
       },
     });
-    requestLog.info("stream completed", { conversationId, textLength: combinedText.length });
+    requestLog.info({ conversationId, textLength: combinedText.length }, "stream completed");
   } catch (error) {
     if (abortController.signal.aborted) {
       return;
@@ -260,6 +300,30 @@ function normalizeMessageContent(content?: BaseMessage["content"]): string | und
   return undefined;
 }
 
+type OriginMatcher = string | RegExp;
+
+function createOriginMatcher(origin: string): OriginMatcher {
+  if (!origin.includes("*")) {
+    return origin;
+  }
+
+  const escaped = origin.split("*").map(escapeRegExp).join(".*");
+  return new RegExp(`^${escaped}$`);
+}
+
+function isAllowedOrigin(candidate: string, matchers: OriginMatcher[]): boolean {
+  return matchers.some((matcher) => {
+    if (typeof matcher === "string") {
+      return matcher === candidate;
+    }
+    return matcher.test(candidate);
+  });
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 function getMessageType(message: BaseMessage): string | undefined {
   const getType = Reflect.get(message, "_getType") as (() => string) | undefined;
   if (typeof getType === "function") {
@@ -281,23 +345,31 @@ async function tryAutoFallback(message: string): Promise<string | undefined> {
   try {
     const isoDates = message.match(/\b\d{4}-\d{2}-\d{2}\b/g) ?? [];
     const adultsMatch = message.match(/\b(\d+)\s+(?:adultos?|adults?)\b/i);
-    const adults = adultsMatch ? Number.parseInt(adultsMatch[1], 10) || 1 : 1;
+    const adultsCapture = adultsMatch?.[1];
+    const adults = adultsCapture ? Number.parseInt(adultsCapture, 10) || 1 : 1;
 
     const airportCodes = message.match(/\b[A-Z]{3}\b/g) ?? [];
     if (/voos?|flight/i.test(message) && airportCodes.length >= 2 && isoDates.length >= 1) {
-      const origin = airportCodes[0];
-      const destination = airportCodes[1];
-      loggerFallback.info("triggering list_flights fallback", { origin, destination, isoDates, adults });
+      const [origin, destination] = airportCodes;
+      const departDate = isoDates[0];
+      const returnDate = isoDates[1];
 
-      const flightPayload = await listFlightsTool.invoke({
-        origin,
-        destination,
-        departDate: isoDates[0],
-        returnDate: isoDates[1],
-        adults,
-      });
+      if (origin && destination && departDate) {
+        loggerFallback.info({ origin, destination, isoDates, adults }, "triggering list_flights fallback");
 
-      return flightPayload;
+        const flightPayloadRaw = await listFlightsTool.invoke({
+          origin,
+          destination,
+          departDate,
+          ...(returnDate ? { returnDate } : {}),
+          adults,
+        });
+
+        const flightPayload =
+          typeof flightPayloadRaw === "string" ? flightPayloadRaw : JSON.stringify(flightPayloadRaw);
+
+        return flightPayload;
+      }
     }
 
     if (/hot[eé]is?|hospedagem|hotel/i.test(message)) {
@@ -306,7 +378,7 @@ async function tryAutoFallback(message: string): Promise<string | undefined> {
 
       if (city) {
         const withBreakfast = /café da manhã|breakfast/i.test(normalized);
-        loggerFallback.info("triggering list_hotels fallback", { city, isoDates, withBreakfast });
+        loggerFallback.info({ city, isoDates, withBreakfast }, "triggering list_hotels fallback");
 
         const defaultCheckin = isoDates[0] ?? "2025-10-01";
         const defaultCheckout = isoDates[1] ?? "2025-10-05";
@@ -336,7 +408,7 @@ async function tryAutoFallback(message: string): Promise<string | undefined> {
 
           const normalizedCity = city.toLowerCase();
           if (normalizedCity.includes("san francisco")) {
-            loggerFallback.warn("building direct hotel fallback", { city, isoDates });
+            loggerFallback.warn({ city, isoDates }, "building direct hotel fallback");
             const fallbackHotels = [
               {
               hotelId: "fallback-hotel-sfo-01",
@@ -407,7 +479,7 @@ async function tryAutoFallback(message: string): Promise<string | undefined> {
     }
 
     if (/destinos?|destination/i.test(message)) {
-      loggerFallback.info("triggering search_destinations fallback", { query: message });
+      loggerFallback.info({ query: message }, "triggering search_destinations fallback");
       let destinationPayload: string | undefined;
       try {
         destinationPayload = await searchDestinationsTool.invoke({ query: message });
@@ -422,7 +494,7 @@ async function tryAutoFallback(message: string): Promise<string | undefined> {
       const tokens = extractSearchTokens(message);
       const fallbackEntry = resolveDestinationFallback(tokens);
       if (fallbackEntry) {
-        loggerFallback.warn("building direct destination fallback", { tokens });
+        loggerFallback.warn({ tokens }, "building direct destination fallback");
         return JSON.stringify(
           {
             data: fallbackEntry.data,
@@ -435,7 +507,7 @@ async function tryAutoFallback(message: string): Promise<string | undefined> {
         );
       }
 
-      loggerFallback.warn("no destination fallback entry matched", { tokens });
+      loggerFallback.warn({ tokens }, "no destination fallback entry matched");
       return destinationPayload;
     }
   } catch (error) {

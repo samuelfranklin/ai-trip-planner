@@ -1,5 +1,6 @@
 import { tool } from '@langchain/core/tools';
 import { z } from 'zod';
+import { Prisma } from '../generated/prisma';
 import { prisma } from '../lib/prisma';
 import logger from '../config/logger';
 
@@ -98,50 +99,72 @@ export function resolveDestinationFallback(tokens: string[]) {
   return FALLBACK_DESTINATIONS.find((entry) => entry.tokens.every((token) => tokens.includes(token)));
 }
 
+type DestinationTextField = 'name' | 'city' | 'country' | 'description';
+
+function buildContainsClause(field: DestinationTextField, term: string): Prisma.DestinationWhereInput {
+  return {
+    [field]: {
+      contains: term,
+      mode: Prisma.QueryMode.insensitive,
+    },
+  } as Prisma.DestinationWhereInput;
+}
+
+const destinationSelection = Prisma.validator<Prisma.DestinationDefaultArgs>()({
+  select: {
+    id: true,
+    name: true,
+    city: true,
+    country: true,
+    shortDescription: true,
+    description: true,
+    heroImageUrl: true,
+    galleryImageUrls: true,
+    bestMonths: true,
+    averageBudget: true,
+    popularityScore: true,
+    categories: {
+      select: {
+        category: {
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+          },
+        },
+      },
+    },
+  },
+});
+
+type DestinationRecord = Prisma.DestinationGetPayload<typeof destinationSelection>;
+
 export const searchDestinationsTool = tool(
   async ({ query, maxResults = 5 }: { query: string; maxResults?: number }) => {
     const log = logger.child({ tool: 'search_destinations', query, maxResults });
     try {
       log.info('search_destinations invoked');
       const tokens = extractSearchTokens(query);
-      const searchClauses =
+      const searchClauses: Prisma.DestinationWhereInput[] =
         tokens.length > 0
           ? tokens.flatMap((token) => [
-              { name: { contains: token, mode: 'insensitive' } },
-              { city: { contains: token, mode: 'insensitive' } },
-              { country: { contains: token, mode: 'insensitive' } },
-              { description: { contains: token, mode: 'insensitive' } },
+              buildContainsClause('name', token),
+              buildContainsClause('city', token),
+              buildContainsClause('country', token),
+              buildContainsClause('description', token),
             ])
-          : [{ name: { contains: query, mode: 'insensitive' } }, { city: { contains: query, mode: 'insensitive' } }, { country: { contains: query, mode: 'insensitive' } }];
+          : [
+              buildContainsClause('name', query),
+              buildContainsClause('city', query),
+              buildContainsClause('country', query),
+              buildContainsClause('description', query),
+            ];
       const destinations = await prisma.destination.findMany({
         where: {
           OR: searchClauses,
           isActive: true,
         },
-        select: {
-          id: true,
-          name: true,
-          city: true,
-          country: true,
-          shortDescription: true,
-          description: true,
-          heroImageUrl: true,
-          galleryImageUrls: true,
-          bestMonths: true,
-          averageBudget: true,
-          popularityScore: true,
-          categories: {
-            select: {
-              category: {
-                select: {
-                  id: true,
-                  name: true,
-                  slug: true,
-                },
-              },
-            },
-          },
-        },
+        ...destinationSelection,
         orderBy: {
           popularityScore: 'desc',
         },
@@ -151,7 +174,7 @@ export const searchDestinationsTool = tool(
       if (destinations.length === 0) {
         const fallback = resolveDestinationFallback(tokens);
         if (fallback) {
-          log.warn('returning fallback destinations', { tokens });
+          log.warn({ tokens }, 'returning fallback destinations');
           return JSON.stringify(
             {
               data: fallback.data,
@@ -179,7 +202,7 @@ export const searchDestinationsTool = tool(
         );
       }
 
-      log.info('destinations found', { count: destinations.length });
+      log.info({ count: destinations.length }, 'destinations found');
       const formatted = destinations.map((dest) => ({
         id: dest.id,
         name: dest.name,

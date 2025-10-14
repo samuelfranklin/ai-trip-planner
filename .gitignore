@@ -13,6 +13,10 @@ apps/api/prisma/seeds/**/*.d.ts
 apps/api/prisma/seeds/**/*.js.map
 apps/api/prisma/seeds/**/*.d.ts.map
 apps/api/prisma/seed.d.ts.map
+.playwright-mcp
 
 blis_requirements.txt
 Senior Frontend Engineer Blis_AI.pdf
+.docs
+.history
+.next
