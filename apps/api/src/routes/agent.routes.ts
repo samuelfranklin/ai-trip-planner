@@ -4,13 +4,6 @@ import { type BaseMessage, HumanMessage } from "@langchain/core/messages";
 import logger from "../config/logger";
 import { agent } from "../agent";
 import { conversationStore } from "../lib/conversation-store";
-import { listFlightsTool } from "../tools/flight.tools";
-import { listHotelsTool } from "../tools/hotel.tools";
-import {
-  searchDestinationsTool,
-  extractSearchTokens,
-  resolveDestinationFallback,
-} from "../tools/destination.tools";
 
 const router = Router();
 
@@ -74,10 +67,20 @@ router.post("/stream", async (req, res) => {
     method: "POST",
     conversationId: req.body?.conversationId,
   });
+
+  requestLog.info({ bodyParsed: !!req.body, bodyKeys: req.body ? Object.keys(req.body) : [] }, "request received, body parsed");
+
   const abortController = new AbortController();
-  req.on("close", () => {
-    abortController.abort();
-    requestLog.warn("stream aborted by client");
+
+  // Listen to response close, not request close!
+  // Request closes after body is read, but response should stay open for streaming
+  res.on("close", () => {
+    if (!res.writableEnded) {
+      requestLog.warn("response closed by client before completion");
+      abortController.abort();
+    } else {
+      requestLog.info("response closed normally");
+    }
   });
 
   const sendChunk = (chunk: unknown) => {
@@ -85,6 +88,12 @@ router.post("/stream", async (req, res) => {
       return;
     }
     res.write(`${JSON.stringify(chunk)}\n`);
+    // Force flush to send chunk immediately
+    const maybeSock = Reflect.get(res, "socket") as any;
+    if (maybeSock && typeof maybeSock.write === "function") {
+      // Socket already flushes automatically
+    }
+    // For HTTP/2 or other transports, no manual flush needed in Node.js
   };
 
   try {
@@ -120,87 +129,112 @@ router.post("/stream", async (req, res) => {
     }
 
     sendChunk({ type: "meta", data: { conversationId } });
-    requestLog.debug({ conversationId }, "stream meta chunk sent");
+    requestLog.info({ conversationId }, "stream meta chunk sent");
 
     if (resetConversation === true) {
       requestLog.info({ conversationId }, "stream reset requested");
       await conversationStore.clear(conversationId);
     }
 
+    requestLog.info("fetching conversation history");
     const history = await conversationStore.get(conversationId);
+    requestLog.info({ historyLength: history.length }, "history fetched");
+
     const userMessage = new HumanMessage(trimmedMessage);
+    requestLog.info("user message created");
 
-    const result = (await agent.invoke({
+    let fullText = "";
+    let currentAssistantContent = "";
+    const toolOutputs: string[] = [];
+    const allMessages: BaseMessage[] = [];
+
+    requestLog.info("starting agent stream");
+
+    const stream = await agent.stream({
       messages: [...history, userMessage],
-    })) as { messages: BaseMessage[] };
-
-    const assistantMessage = result.messages[result.messages.length - 1];
-    const newMessages = result.messages.slice(history.length);
-    await conversationStore.set(conversationId, result.messages);
-
-    const responseText = normalizeMessageContent(assistantMessage?.content) ?? "";
-    const toolSegments = newMessages
-      .filter((message) => {
-        const messageType = getMessageType(message);
-        return messageType === "tool" || messageType === "function";
-      })
-      .map((message) => normalizeMessageContent(message.content) ?? "")
-      .filter((segment) => segment.trim().length > 0);
-
-    const formattedToolSegments = toolSegments.map((segment) => {
-      try {
-        const parsed = JSON.parse(segment);
-        return JSON.stringify(parsed, null, 2);
-      } catch {
-        return segment;
-      }
     });
 
-    let combinedText = [responseText, ...formattedToolSegments]
-      .map((segment) => segment.trim())
-      .filter((segment) => segment.length > 0)
-      .join("\n\n");
+    requestLog.info("agent stream created, starting iteration");
 
-    if (!/"source"\s*:\s*"/.test(combinedText)) {
-      const autoFallback = await tryAutoFallback(trimmedMessage);
-      if (autoFallback) {
-        requestLog.warn({ fallbackLength: autoFallback.length }, "auto fallback executed for message");
-        let formattedFallback = autoFallback;
-        try {
-          const parsed = JSON.parse(autoFallback);
-          formattedFallback = JSON.stringify(parsed, null, 2);
-        } catch {
-          // Keep as-is if not valid JSON
+    for await (const chunk of stream) {
+      if (abortController.signal.aborted) {
+        requestLog.warn("stream aborted during agent processing");
+        return;
+      }
+
+      requestLog.info({ chunkKeys: Object.keys(chunk) }, "received chunk from agent.stream");
+
+      // LangGraph stream yields { agent: { messages: [messages] } }
+      if (chunk.agent && Array.isArray(chunk.agent.messages)) {
+        for (const message of chunk.agent.messages) {
+          allMessages.push(message);
+
+          const messageType = getMessageType(message);
+          const content = normalizeMessageContent(message.content);
+
+          if (messageType === "ai" || messageType === "assistant") {
+            // Stream AI message content token by token
+            if (content && content.length > currentAssistantContent.length) {
+              const newTokens = content.slice(currentAssistantContent.length);
+              currentAssistantContent = content;
+              fullText += newTokens;
+
+              sendChunk({
+                type: "delta",
+                data: {
+                  textDelta: newTokens,
+                  fullText,
+                },
+              });
+              requestLog.debug({ tokenLength: newTokens.length }, "ai token streamed");
+            }
+          } else if (messageType === "tool" || messageType === "function") {
+            // Capture tool outputs
+            if (content && content.trim().length > 0) {
+              try {
+                const parsed = JSON.parse(content);
+                const formatted = JSON.stringify(parsed, null, 2);
+                toolOutputs.push(formatted);
+                fullText += "\n\n" + formatted;
+
+                sendChunk({
+                  type: "delta",
+                  data: {
+                    textDelta: "\n\n" + formatted,
+                    fullText,
+                  },
+                });
+                requestLog.debug({ toolOutputLength: formatted.length }, "tool output streamed");
+              } catch {
+                toolOutputs.push(content);
+                fullText += "\n\n" + content;
+
+                sendChunk({
+                  type: "delta",
+                  data: {
+                    textDelta: "\n\n" + content,
+                    fullText,
+                  },
+                });
+              }
+            }
+          }
         }
-        combinedText = [responseText, formattedFallback]
-          .map((segment) => segment.trim())
-          .filter(Boolean)
-          .join("\n\n");
       }
     }
 
-    if (combinedText.length > 0) {
-      requestLog.info(
-        { conversationId, textLength: combinedText.length, toolSegments: toolSegments.length },
-        "stream delta generated",
-      );
-      sendChunk({
-        type: "delta",
-        data: {
-          textDelta: combinedText,
-          fullText: combinedText,
-        },
-      });
-    }
+    // Save final conversation state
+    const finalMessages = [...history, userMessage, ...allMessages];
+    await conversationStore.set(conversationId, finalMessages);
 
     sendChunk({
       type: "complete",
       data: {
         conversationId,
-        text: combinedText,
+        text: fullText,
       },
     });
-    requestLog.info({ conversationId, textLength: combinedText.length }, "stream completed");
+    requestLog.info({ conversationId, textLength: fullText.length, toolCount: toolOutputs.length }, "stream completed");
   } catch (error) {
     if (abortController.signal.aborted) {
       return;
@@ -274,187 +308,6 @@ function getMessageType(message: BaseMessage): string | undefined {
 
   const typeField = Reflect.get(message, "type");
   return typeof typeField === "string" ? typeField : undefined;
-}
-
-async function tryAutoFallback(message: string): Promise<string | undefined> {
-  const normalized = message.toLowerCase();
-  const loggerFallback = logger.child({ route: "auto_fallback" });
-
-  try {
-    const isoDates = message.match(/\b\d{4}-\d{2}-\d{2}\b/g) ?? [];
-    const adultsMatch = message.match(/\b(\d+)\s+(?:adultos?|adults?)\b/i);
-    const adultsCapture = adultsMatch?.[1];
-    const adults = adultsCapture ? Number.parseInt(adultsCapture, 10) || 1 : 1;
-
-    const airportCodes = message.match(/\b[A-Z]{3}\b/g) ?? [];
-    if (/voos?|flight/i.test(message) && airportCodes.length >= 2 && isoDates.length >= 1) {
-      const [origin, destination] = airportCodes;
-      const departDate = isoDates[0];
-      const returnDate = isoDates[1];
-
-      if (origin && destination && departDate) {
-        loggerFallback.info({ origin, destination, isoDates, adults }, "triggering list_flights fallback");
-
-        const flightPayloadRaw = await listFlightsTool.invoke({
-          origin,
-          destination,
-          departDate,
-          ...(returnDate ? { returnDate } : {}),
-          adults,
-        });
-
-        const flightPayload =
-          typeof flightPayloadRaw === "string" ? flightPayloadRaw : JSON.stringify(flightPayloadRaw);
-
-        return flightPayload;
-      }
-    }
-
-    if (/hot[eé]is?|hospedagem|hotel/i.test(message)) {
-      const cityMatch = message.match(/(?:hot[eé]is?|hospedagem)\s+(?:em|para)\s+([A-Za-zÀ-ÿ\s]+)/i);
-      const city = cityMatch?.[1]?.trim();
-
-      if (city) {
-        const withBreakfast = /café da manhã|breakfast/i.test(normalized);
-        loggerFallback.info({ city, isoDates, withBreakfast }, "triggering list_hotels fallback");
-
-        const defaultCheckin = isoDates[0] ?? "2025-10-01";
-        const defaultCheckout = isoDates[1] ?? "2025-10-05";
-
-        const checkinDate = new Date(defaultCheckin);
-        const checkoutDate = new Date(defaultCheckout);
-        const msPerNight = 1000 * 60 * 60 * 24;
-        const nights = Math.max(1, Math.round((checkoutDate.getTime() - checkinDate.getTime()) / msPerNight));
-
-        try {
-          const hotelPayload = await listHotelsTool.invoke({
-            city,
-            checkin: defaultCheckin,
-            checkout: defaultCheckout,
-            rooms: 1,
-            adults,
-            withBreakfast,
-          });
-
-          const parsed = JSON.parse(hotelPayload);
-          if (Array.isArray(parsed?.data) && parsed.data.length > 0) {
-            return hotelPayload;
-          }
-        } catch (error) {
-          loggerFallback.warn({ err: error }, "list_hotels tool invocation failed during fallback");
-        }
-
-        const normalizedCity = city.toLowerCase();
-        if (normalizedCity.includes("san francisco")) {
-          loggerFallback.warn({ city, isoDates }, "building direct hotel fallback");
-          const fallbackHotels = [
-            {
-              hotelId: "fallback-hotel-sfo-01",
-              name: "Bayview Skyline Hotel",
-              city: "San Francisco",
-              address: "550 Market St, San Francisco, CA",
-              heroImageUrl:
-                "https://images.unsplash.com/photo-1540236529316-60932c019d4a?auto=format&fit=crop&w=1200&q=80",
-              galleryImageUrls: [
-                "https://images.unsplash.com/photo-1445019980597-93fa8acb246c?auto=format&fit=crop&w=1200&q=80",
-                "https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=1200&q=80",
-              ],
-              nightlyLabel: "USD 320.00",
-              totalLabel: "USD 1,280.00",
-              rating: 4.6,
-              reviewCount: 540,
-              breakfastIncluded: true,
-              refundable: true,
-              categories: [
-                { id: "cat-city", name: "Urbano", slug: "urbano" },
-                { id: "cat-business", name: "Negócios", slug: "negocios" },
-              ],
-            },
-            {
-              hotelId: "fallback-hotel-sfo-02",
-              name: "Golden Gate Boutique",
-              city: "San Francisco",
-              address: "1200 Lombard St, San Francisco, CA",
-              heroImageUrl:
-                "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=1200&q=80",
-              galleryImageUrls: [
-                "https://images.unsplash.com/photo-1551776235-dde6d4829808?auto=format&fit=crop&w=1200&q=80",
-                "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=1200&q=80",
-              ],
-              nightlyLabel: "USD 275.00",
-              totalLabel: "USD 1,100.00",
-              rating: 4.4,
-              reviewCount: 312,
-              breakfastIncluded: true,
-              refundable: false,
-              categories: [
-                { id: "cat-boutique", name: "Boutique", slug: "boutique" },
-                { id: "cat-couple", name: "Casais", slug: "casais" },
-              ],
-            },
-          ];
-
-          return JSON.stringify(
-            {
-              data: fallbackHotels.map((hotel) => ({
-                ...hotel,
-                summary: {
-                  checkin: defaultCheckin,
-                  checkout: defaultCheckout,
-                  nights,
-                },
-              })),
-              source: "hotels",
-              language: "en",
-              suggestions: [
-                "Use book_hotel para confirmar a hospedagem informando hotelId e dados do hóspede",
-                "Peça get_hotel_amenities para descobrir facilidades específicas do hotel escolhido",
-              ],
-            },
-            null,
-            2,
-          );
-        }
-      }
-    }
-
-    if (/destinos?|destination/i.test(message)) {
-      loggerFallback.info({ query: message }, "triggering search_destinations fallback");
-      let destinationPayload: string | undefined;
-      try {
-        destinationPayload = await searchDestinationsTool.invoke({ query: message });
-        const parsed = JSON.parse(destinationPayload);
-        if (Array.isArray(parsed?.data) && parsed.data.length > 0) {
-          return destinationPayload;
-        }
-      } catch (error) {
-        loggerFallback.warn({ err: error }, "search_destinations tool invocation failed during fallback");
-      }
-
-      const tokens = extractSearchTokens(message);
-      const fallbackEntry = resolveDestinationFallback(tokens);
-      if (fallbackEntry) {
-        loggerFallback.warn({ tokens }, "building direct destination fallback");
-        return JSON.stringify(
-          {
-            data: fallbackEntry.data,
-            source: "destinations",
-            language: "pt-BR",
-            suggestions: fallbackEntry.suggestions,
-          },
-          null,
-          2,
-        );
-      }
-
-      loggerFallback.warn({ tokens }, "no destination fallback entry matched");
-      return destinationPayload;
-    }
-  } catch (error) {
-    loggerFallback.error({ err: error }, "auto fallback failed");
-  }
-
-  return undefined;
 }
 
 export const agentRouter: ReturnType<typeof Router> = router;

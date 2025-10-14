@@ -6,76 +6,6 @@ import logger from '../config/logger';
 
 const STOPWORDS = new Set(['quais', 'destinos', 'você', 'voce', 'para', 'por', 'uma', 'que', 'qual', 'com', 'nos', 'nas', 'dos', 'das', 'the', 'and', 'como', 'onde', 'de', 'um', 'uma', 'no']);
 
-const FALLBACK_DESTINATIONS: Array<{
-  tokens: string[];
-  data: Array<Record<string, unknown>>;
-  suggestions: string[];
-}> = [
-  {
-    tokens: ['brasil', 'dezembro'],
-    data: [
-      {
-        id: 'fallback-salvador',
-        name: 'Salvador',
-        city: 'Salvador',
-        country: 'Brasil',
-        summary: 'Verão baiano com festas, praias quentes e cultura afro-brasileira vibrante.',
-        heroImageUrl: 'https://images.unsplash.com/photo-1526406915894-7bcd65f60845?auto=format&fit=crop&w=1200&q=80',
-        galleryImageUrls: [
-          'https://images.unsplash.com/photo-1556663867-9d713d9ca3d5?auto=format&fit=crop&w=1200&q=80',
-          'https://images.unsplash.com/photo-1590431252609-9a74dbffac85?auto=format&fit=crop&w=1200&q=80',
-        ],
-        bestMonths: ['Dezembro', 'Janeiro', 'Fevereiro'],
-        averageBudgetLabel: 'R$ 1.200 - R$ 1.800',
-        categories: [
-          { id: 'cat-beach', name: 'Praia', slug: 'praia' },
-          { id: 'cat-culture', name: 'Cultura', slug: 'cultura' },
-        ],
-      },
-      {
-        id: 'fallback-florianopolis',
-        name: 'Florianópolis',
-        city: 'Florianópolis',
-        country: 'Brasil',
-        summary: 'Ilha da magia com águas cristalinas, trilhas e gastronomia açoriana.',
-        heroImageUrl: 'https://images.unsplash.com/photo-1502082553048-f009c37129b9?auto=format&fit=crop&w=1200&q=80',
-        galleryImageUrls: [
-          'https://images.unsplash.com/photo-1534447677768-be436bb09401?auto=format&fit=crop&w=1200&q=80',
-          'https://images.unsplash.com/photo-1502086223501-7ea6ecd79368?auto=format&fit=crop&w=1200&q=80',
-        ],
-        bestMonths: ['Dezembro', 'Janeiro', 'Fevereiro'],
-        averageBudgetLabel: 'R$ 1.500 - R$ 2.300',
-        categories: [
-          { id: 'cat-beach', name: 'Praia', slug: 'praia' },
-          { id: 'cat-nature', name: 'Natureza', slug: 'natureza' },
-        ],
-      },
-      {
-        id: 'fallback-gramado',
-        name: 'Gramado',
-        city: 'Gramado',
-        country: 'Brasil',
-        summary: 'Clima europeu na serra gaúcha com o Natal Luz e gastronomia acolhedora.',
-        heroImageUrl: 'https://images.unsplash.com/photo-1613992882271-5ee0c6c4c9a1?auto=format&fit=crop&w=1200&q=80',
-        galleryImageUrls: [
-          'https://images.unsplash.com/photo-1602826113562-cde1c993dfe1?auto=format&fit=crop&w=1200&q=80',
-          'https://images.unsplash.com/photo-1542372147193-a7aca54189cd?auto=format&fit=crop&w=1200&q=80',
-        ],
-        bestMonths: ['Novembro', 'Dezembro'],
-        averageBudgetLabel: 'R$ 1.800 - R$ 2.800',
-        categories: [
-          { id: 'cat-family', name: 'Família', slug: 'familia' },
-          { id: 'cat-seasonal', name: 'Natal', slug: 'natal' },
-        ],
-      },
-    ],
-    suggestions: [
-      'Use get_seasonal_info para ver clima e eventos do destino escolhido',
-      'Use list_hotels para explorar estadas no destino selecionado',
-    ],
-  },
-];
-
 function normalizeSearchTerm(term: string): string {
   return term
     .normalize('NFD')
@@ -93,10 +23,6 @@ export function extractSearchTokens(query: string): string[] {
     return [normalized];
   }
   return tokens;
-}
-
-export function resolveDestinationFallback(tokens: string[]) {
-  return FALLBACK_DESTINATIONS.find((entry) => entry.tokens.every((token) => tokens.includes(token)));
 }
 
 type DestinationTextField = 'name' | 'city' | 'country' | 'description';
@@ -172,21 +98,7 @@ export const searchDestinationsTool = tool(
       });
 
       if (destinations.length === 0) {
-        const fallback = resolveDestinationFallback(tokens);
-        if (fallback) {
-          log.warn({ tokens }, 'returning fallback destinations');
-          return JSON.stringify(
-            {
-              data: fallback.data,
-              source: 'destinations',
-              language: 'pt-BR',
-              suggestions: fallback.suggestions,
-            },
-            null,
-            2,
-          );
-        }
-
+        log.warn({ tokens }, 'no destinations found in database');
         return JSON.stringify(
           {
             data: [],
