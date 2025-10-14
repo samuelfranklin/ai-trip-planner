@@ -1,42 +1,96 @@
 import { tool } from '@langchain/core/tools';
 import { z } from 'zod';
+import { Prisma } from '../generated/prisma';
 import { prisma } from '../lib/prisma';
+import logger from '../config/logger';
+
+const STOPWORDS = new Set(['quais', 'destinos', 'você', 'voce', 'para', 'por', 'uma', 'que', 'qual', 'com', 'nos', 'nas', 'dos', 'das', 'the', 'and', 'como', 'onde', 'de', 'um', 'uma', 'no']);
+
+function normalizeSearchTerm(term: string): string {
+  return term
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/gi, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+export function extractSearchTokens(query: string): string[] {
+  const normalized = normalizeSearchTerm(query);
+  const tokens = normalized.split(' ').filter((token) => token.length >= 3 && !STOPWORDS.has(token));
+  if (tokens.length === 0 && normalized.length > 0) {
+    return [normalized];
+  }
+  return tokens;
+}
+
+type DestinationTextField = 'name' | 'city' | 'country' | 'description';
+
+function buildContainsClause(field: DestinationTextField, term: string): Prisma.DestinationWhereInput {
+  return {
+    [field]: {
+      contains: term,
+      mode: Prisma.QueryMode.insensitive,
+    },
+  } as Prisma.DestinationWhereInput;
+}
+
+const destinationSelection = Prisma.validator<Prisma.DestinationDefaultArgs>()({
+  select: {
+    id: true,
+    name: true,
+    city: true,
+    country: true,
+    shortDescription: true,
+    description: true,
+    heroImageUrl: true,
+    galleryImageUrls: true,
+    bestMonths: true,
+    averageBudget: true,
+    popularityScore: true,
+    categories: {
+      select: {
+        category: {
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+          },
+        },
+      },
+    },
+  },
+});
+
+type DestinationRecord = Prisma.DestinationGetPayload<typeof destinationSelection>;
 
 export const searchDestinationsTool = tool(
   async ({ query, maxResults = 5 }: { query: string; maxResults?: number }) => {
+    const log = logger.child({ tool: 'search_destinations', query, maxResults });
     try {
+      log.info('search_destinations invoked');
+      const tokens = extractSearchTokens(query);
+      const searchClauses: Prisma.DestinationWhereInput[] =
+        tokens.length > 0
+          ? tokens.flatMap((token) => [
+              buildContainsClause('name', token),
+              buildContainsClause('city', token),
+              buildContainsClause('country', token),
+              buildContainsClause('description', token),
+            ])
+          : [
+              buildContainsClause('name', query),
+              buildContainsClause('city', query),
+              buildContainsClause('country', query),
+              buildContainsClause('description', query),
+            ];
       const destinations = await prisma.destination.findMany({
         where: {
-          OR: [
-            { name: { contains: query, mode: 'insensitive' } },
-            { city: { contains: query, mode: 'insensitive' } },
-            { country: { contains: query, mode: 'insensitive' } },
-            { description: { contains: query, mode: 'insensitive' } },
-          ],
+          OR: searchClauses,
           isActive: true,
         },
-        select: {
-          id: true,
-          name: true,
-          city: true,
-          country: true,
-          shortDescription: true,
-          description: true,
-          bestMonths: true,
-          averageBudget: true,
-          popularityScore: true,
-          categories: {
-            select: {
-              category: {
-                select: {
-                  id: true,
-                  name: true,
-                  slug: true,
-                },
-              },
-            },
-          },
-        },
+        ...destinationSelection,
         orderBy: {
           popularityScore: 'desc',
         },
@@ -44,6 +98,7 @@ export const searchDestinationsTool = tool(
       });
 
       if (destinations.length === 0) {
+        log.warn({ tokens }, 'no destinations found in database');
         return JSON.stringify(
           {
             data: [],
@@ -59,6 +114,7 @@ export const searchDestinationsTool = tool(
         );
       }
 
+      log.info({ count: destinations.length }, 'destinations found');
       const formatted = destinations.map((dest) => ({
         id: dest.id,
         name: dest.name,
@@ -69,6 +125,8 @@ export const searchDestinationsTool = tool(
           (dest.description
             ? `${dest.description.slice(0, 200)}${dest.description.length > 200 ? '...' : ''}`
             : null),
+        heroImageUrl: dest.heroImageUrl ?? null,
+        galleryImageUrls: dest.galleryImageUrls ?? [],
         bestMonths: dest.bestMonths,
         averageBudget: dest.averageBudget ?? null,
         averageBudgetLabel: dest.averageBudget ? `R$ ${dest.averageBudget.toFixed(2)}` : null,
@@ -94,6 +152,7 @@ export const searchDestinationsTool = tool(
         2
       );
     } catch (error) {
+      log.error({ err: error }, 'search_destinations failed');
       console.error('Error while fetching destinations:', error);
       return JSON.stringify({
         error: true,

@@ -385,6 +385,10 @@ model Destination {
   longitude       Decimal?  @db.Decimal(10, 7)
   timezone        String?   @db.VarChar(50)
 
+  // Media
+  heroImageUrl    String?   @db.VarChar(500)
+  galleryImageUrls String[] @default([])
+
   // Relations
   categories      DestinationCategory[]
   pointsOfInterest PointOfInterest[]
@@ -487,6 +491,10 @@ model Hotel {
   // Pricing
   nightlyRate     Decimal   @db.Decimal(10, 2)
   currency        String    @default("BRL") @db.VarChar(3)
+
+  // Media
+  heroImageUrl    String?   @db.VarChar(500)
+  galleryImageUrls String[] @default([])
 
   // Amenities and policies
   breakfastIncluded Boolean @default(false)

@@ -3,6 +3,223 @@ import { PrismaClient } from '../../src/generated/prisma';
 export async function seedDestinations(prisma: PrismaClient) {
   console.log('🌍 Seeding destinations...');
 
+  const defaultDestinationGallery = [
+    'https://images.unsplash.com/photo-1521791136064-7986c2920216?auto=format&fit=crop&w=1200&q=80',
+    'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=1200&q=80',
+    'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1200&q=80',
+  ];
+
+  const destinationMedia: Record<string, { heroImageUrl: string; galleryImageUrls: string[] }> = {
+    'São Paulo': {
+      heroImageUrl: 'https://images.unsplash.com/photo-1531256456869-ce942a665e80?auto=format&fit=crop&w=1200&q=80',
+      galleryImageUrls: [...defaultDestinationGallery],
+    },
+    'Rio de Janeiro': {
+      heroImageUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=1200&q=80',
+      galleryImageUrls: [...defaultDestinationGallery],
+    },
+    Salvador: {
+      heroImageUrl: 'https://images.unsplash.com/photo-1526404079166-6c3b14d4446f?auto=format&fit=crop&w=1200&q=80',
+      galleryImageUrls: [...defaultDestinationGallery],
+    },
+    'Recife e Porto de Galinhas': {
+      heroImageUrl: 'https://images.unsplash.com/photo-1518458028785-8fbcd101ebb9?auto=format&fit=crop&w=1200&q=80',
+      galleryImageUrls: [...defaultDestinationGallery],
+    },
+    Fortaleza: {
+      heroImageUrl: 'https://images.unsplash.com/photo-1526402468770-3b30f66e187d?auto=format&fit=crop&w=1200&q=80',
+      galleryImageUrls: [...defaultDestinationGallery],
+    },
+    Florianópolis: {
+      heroImageUrl: 'https://images.unsplash.com/photo-1543076447-215ad9ba6923?auto=format&fit=crop&w=1200&q=80',
+      galleryImageUrls: [...defaultDestinationGallery],
+    },
+    'Foz do Iguaçu': {
+      heroImageUrl: 'https://images.unsplash.com/photo-1513836279014-a89f7a76ae86?auto=format&fit=crop&w=1200&q=80',
+      galleryImageUrls: [...defaultDestinationGallery],
+    },
+    'Buenos Aires': {
+      heroImageUrl: 'https://images.unsplash.com/photo-1529307474719-3d1d1cfbb0de?auto=format&fit=crop&w=1200&q=80',
+      galleryImageUrls: [...defaultDestinationGallery],
+    },
+    Santiago: {
+      heroImageUrl: 'https://images.unsplash.com/photo-1469474968028-56623f02e42e?auto=format&fit=crop&w=1200&q=80',
+      galleryImageUrls: [...defaultDestinationGallery],
+    },
+    Lima: {
+      heroImageUrl: 'https://images.unsplash.com/photo-1520975918316-7da8f9f86006?auto=format&fit=crop&w=1200&q=80',
+      galleryImageUrls: [...defaultDestinationGallery],
+    },
+    'Cusco e Machu Picchu': {
+      heroImageUrl: 'https://images.unsplash.com/photo-1526392060635-9d6019884377?auto=format&fit=crop&w=1200&q=80',
+      galleryImageUrls: [...defaultDestinationGallery],
+    },
+    Montevidéu: {
+      heroImageUrl: 'https://images.unsplash.com/photo-1528909514045-2fa4ac7a08ba?auto=format&fit=crop&w=1200&q=80',
+      galleryImageUrls: [...defaultDestinationGallery],
+    },
+    Cartagena: {
+      heroImageUrl: 'https://images.unsplash.com/photo-1543248939-ff40856f65d4?auto=format&fit=crop&w=1200&q=80',
+      galleryImageUrls: [...defaultDestinationGallery],
+    },
+    Miami: {
+      heroImageUrl: 'https://images.unsplash.com/photo-1464146072230-91cabc968266?auto=format&fit=crop&w=1200&q=80',
+      galleryImageUrls: [...defaultDestinationGallery],
+    },
+    Orlando: {
+      heroImageUrl: 'https://images.unsplash.com/photo-1505843513577-22bb7d21e455?auto=format&fit=crop&w=1200&q=80',
+      galleryImageUrls: [...defaultDestinationGallery],
+    },
+    'Nova York': {
+      heroImageUrl: 'https://images.unsplash.com/photo-1467269204594-9661b134dd2b?auto=format&fit=crop&w=1200&q=80',
+      galleryImageUrls: [...defaultDestinationGallery],
+    },
+    'São Francisco': {
+      heroImageUrl: 'https://images.unsplash.com/photo-1501594907352-04cda38ebc29?auto=format&fit=crop&w=1200&q=80',
+      galleryImageUrls: [...defaultDestinationGallery],
+    },
+    Lisboa: {
+      heroImageUrl: 'https://images.unsplash.com/photo-1508641898614-8c317d46054b?auto=format&fit=crop&w=1200&q=80',
+      galleryImageUrls: [...defaultDestinationGallery],
+    },
+    Paris: {
+      heroImageUrl: 'https://images.unsplash.com/photo-1502602898657-3e91760cbb34?auto=format&fit=crop&w=1200&q=80',
+      galleryImageUrls: [...defaultDestinationGallery],
+    },
+    Roma: {
+      heroImageUrl: 'https://images.unsplash.com/photo-1526481280695-3c469ccf26a4?auto=format&fit=crop&w=1200&q=80',
+      galleryImageUrls: [...defaultDestinationGallery],
+    },
+    Barcelona: {
+      heroImageUrl: 'https://images.unsplash.com/photo-1473959383413-cd1bf1ac1b77?auto=format&fit=crop&w=1200&q=80',
+      galleryImageUrls: [...defaultDestinationGallery],
+    },
+    Madrid: {
+      heroImageUrl: 'https://images.unsplash.com/photo-1519671482749-fd09be7ccebf?auto=format&fit=crop&w=1200&q=80',
+      galleryImageUrls: [...defaultDestinationGallery],
+    },
+    'Punta Cana': {
+      heroImageUrl: 'https://images.unsplash.com/photo-1478118330274-ff72cf1161f3?auto=format&fit=crop&w=1200&q=80',
+      galleryImageUrls: [...defaultDestinationGallery],
+    },
+    Curaçao: {
+      heroImageUrl: 'https://images.unsplash.com/photo-1543342386-8b95db76a05f?auto=format&fit=crop&w=1200&q=80',
+      galleryImageUrls: [...defaultDestinationGallery],
+    },
+    Gramado: {
+      heroImageUrl: 'https://source.unsplash.com/1200x800/?gramado,brazil',
+      galleryImageUrls: [
+        'https://source.unsplash.com/1200x800/?serra-gaucha',
+        'https://source.unsplash.com/1200x800/?gramado,natal-luz',
+      ],
+    },
+    Jericoacoara: {
+      heroImageUrl: 'https://source.unsplash.com/1200x800/?jericoacoara,beach',
+      galleryImageUrls: [
+        'https://source.unsplash.com/1200x800/?jeri,dunes',
+        'https://source.unsplash.com/1200x800/?jericoacoara,sunset',
+      ],
+    },
+    'Fernando de Noronha': {
+      heroImageUrl: 'https://source.unsplash.com/1200x800/?fernando+de+noronha,brazil',
+      galleryImageUrls: [
+        'https://source.unsplash.com/1200x800/?noronha,beach',
+        'https://source.unsplash.com/1200x800/?noronha,diving',
+      ],
+    },
+    Bonito: {
+      heroImageUrl: 'https://source.unsplash.com/1200x800/?bonito,brazil',
+      galleryImageUrls: [
+        'https://source.unsplash.com/1200x800/?bonito,river',
+        'https://source.unsplash.com/1200x800/?bonito,cave',
+      ],
+    },
+    'Manaus e Amazônia': {
+      heroImageUrl: 'https://source.unsplash.com/1200x800/?amazon,rainforest',
+      galleryImageUrls: [
+        'https://source.unsplash.com/1200x800/?manaus,river',
+        'https://source.unsplash.com/1200x800/?amazon,waterfall',
+      ],
+    },
+    'Lençóis Maranhenses': {
+      heroImageUrl: 'https://source.unsplash.com/1200x800/?lencois,maranhenses',
+      galleryImageUrls: [
+        'https://source.unsplash.com/1200x800/?lencois,dunes',
+        'https://source.unsplash.com/1200x800/?barreirinhas,lagoa',
+      ],
+    },
+    'Cancún': {
+      heroImageUrl: 'https://source.unsplash.com/1200x800/?cancun,resort',
+      galleryImageUrls: [
+        'https://source.unsplash.com/1200x800/?riviera,maya',
+        'https://source.unsplash.com/1200x800/?tulum,beach',
+      ],
+    },
+    'Los Angeles': {
+      heroImageUrl: 'https://source.unsplash.com/1200x800/?los+angeles,skyline',
+      galleryImageUrls: [
+        'https://source.unsplash.com/1200x800/?santa+monica,pier',
+        'https://source.unsplash.com/1200x800/?hollywood,sign',
+      ],
+    },
+    Vancouver: {
+      heroImageUrl: 'https://source.unsplash.com/1200x800/?vancouver,canada',
+      galleryImageUrls: [
+        'https://source.unsplash.com/1200x800/?stanley+park',
+        'https://source.unsplash.com/1200x800/?vancouver,mountains',
+      ],
+    },
+    'Tóquio': {
+      heroImageUrl: 'https://source.unsplash.com/1200x800/?tokyo,city',
+      galleryImageUrls: [
+        'https://source.unsplash.com/1200x800/?shibuya,crossing',
+        'https://source.unsplash.com/1200x800/?tokyo,temple',
+      ],
+    },
+    Dubai: {
+      heroImageUrl: 'https://source.unsplash.com/1200x800/?dubai,skyline',
+      galleryImageUrls: [
+        'https://source.unsplash.com/1200x800/?dubai,desert',
+        'https://source.unsplash.com/1200x800/?burj,khalifa',
+      ],
+    },
+    'Bali (Seminyak e Ubud)': {
+      heroImageUrl: 'https://source.unsplash.com/1200x800/?bali,indonesia',
+      galleryImageUrls: [
+        'https://source.unsplash.com/1200x800/?bali,rice+terrace',
+        'https://source.unsplash.com/1200x800/?bali,temple',
+      ],
+    },
+    'Cidade do Cabo': {
+      heroImageUrl: 'https://source.unsplash.com/1200x800/?cape+town,table+mountain',
+      galleryImageUrls: [
+        'https://source.unsplash.com/1200x800/?cape+town,beach',
+        'https://source.unsplash.com/1200x800/?stellenbosch,winery',
+      ],
+    },
+    Sydney: {
+      heroImageUrl: 'https://source.unsplash.com/1200x800/?sydney,opera+house',
+      galleryImageUrls: [
+        'https://source.unsplash.com/1200x800/?sydney,harbour',
+        'https://source.unsplash.com/1200x800/?bondi,beach',
+      ],
+    },
+    Queenstown: {
+      heroImageUrl: 'https://source.unsplash.com/1200x800/?queenstown,new+zealand',
+      galleryImageUrls: [
+        'https://source.unsplash.com/1200x800/?queenstown,lake',
+        'https://source.unsplash.com/1200x800/?new+zealand,alps',
+      ],
+    },
+    Marrakesh: {
+      heroImageUrl: 'https://source.unsplash.com/1200x800/?marrakech,medina',
+      galleryImageUrls: [
+        'https://source.unsplash.com/1200x800/?marrakech,souk',
+        'https://source.unsplash.com/1200x800/?marrakech,riad',
+      ],
+    },
+  };
+
   const destinations = [
     // Brasil - Destinos Nacionais
     {
@@ -108,6 +325,96 @@ export async function seedDestinations(prisma: PrismaClient) {
       latitude: -25.516389,
       longitude: -54.585556,
       timezone: 'America/Sao_Paulo',
+      categoryNames: ['Natureza', 'Aventura', 'Família'],
+    },
+    {
+      name: 'Gramado',
+      city: 'Gramado',
+      country: 'Brasil',
+      countryCode: 'BR',
+      description: 'Clima europeu na Serra Gaúcha com o famoso Natal Luz, chocolaterias artesanais, vinícolas vizinhas e parques temáticos para toda a família.',
+      shortDescription: 'Serra Gaúcha com clima europeu e Natal Luz',
+      bestMonths: [5, 6, 7, 8, 11, 12],
+      averageBudget: 420.00,
+      popularityScore: 83,
+      latitude: -29.378000,
+      longitude: -50.873000,
+      timezone: 'America/Sao_Paulo',
+      categoryNames: ['Família', 'Cultural', 'Romance', 'Gastronômico'],
+    },
+    {
+      name: 'Jericoacoara',
+      city: 'Jijoca de Jericoacoara',
+      country: 'Brasil',
+      countryCode: 'BR',
+      description: 'Vilarejo praiano cercado por dunas, lagoas cristalinas e ventos perfeitos para kitesurf. Pôr do sol nas dunas e a Pedra Furada são cartões-postais inesquecíveis.',
+      shortDescription: 'Dunas, lagoas e pôr do sol inesquecível',
+      bestMonths: [7, 8, 9, 10, 11, 12],
+      averageBudget: 450.00,
+      popularityScore: 85,
+      latitude: -2.798775,
+      longitude: -40.512220,
+      timezone: 'America/Fortaleza',
+      categoryNames: ['Praia', 'Natureza', 'Aventura'],
+    },
+    {
+      name: 'Fernando de Noronha',
+      city: 'Fernando de Noronha',
+      country: 'Brasil',
+      countryCode: 'BR',
+      description: 'Arquipélago paradisíaco com praias desertas, vida marinha abundante e controle de visitantes. Ideal para mergulho, trilhas e experiências românticas em meio à natureza preservada.',
+      shortDescription: 'Arquipélago preservado com mergulho de classe mundial',
+      bestMonths: [8, 9, 10, 11, 12, 1, 2],
+      averageBudget: 950.00,
+      popularityScore: 90,
+      latitude: -3.857600,
+      longitude: -32.429700,
+      timezone: 'America/Noronha',
+      categoryNames: ['Praia', 'Natureza', 'Aventura', 'Romance', 'Luxo'],
+    },
+    {
+      name: 'Bonito',
+      city: 'Bonito',
+      country: 'Brasil',
+      countryCode: 'BR',
+      description: 'Capital do ecoturismo brasileiro, Bonito oferece rios de águas cristalinas para flutuação, cavernas, cachoeiras e gastronomia pantaneira.',
+      shortDescription: 'Flutuação em rios cristalinos e cavernas azuis',
+      bestMonths: [4, 5, 6, 7, 8, 9],
+      averageBudget: 380.00,
+      popularityScore: 82,
+      latitude: -21.126100,
+      longitude: -56.483600,
+      timezone: 'America/Campo_Grande',
+      categoryNames: ['Natureza', 'Aventura', 'Família'],
+    },
+    {
+      name: 'Manaus e Amazônia',
+      city: 'Manaus',
+      country: 'Brasil',
+      countryCode: 'BR',
+      description: 'Porta de entrada para a Floresta Amazônica, com hotéis de selva, encontro das águas, mercados históricos e experiências culturais com comunidades ribeirinhas.',
+      shortDescription: 'Floresta Amazônica, rios poderosos e cultura ribeirinha',
+      bestMonths: [6, 7, 8, 9, 10],
+      averageBudget: 550.00,
+      popularityScore: 84,
+      latitude: -3.119027,
+      longitude: -60.021731,
+      timezone: 'America/Manaus',
+      categoryNames: ['Natureza', 'Aventura', 'Cultural'],
+    },
+    {
+      name: 'Lençóis Maranhenses',
+      city: 'Barreirinhas',
+      country: 'Brasil',
+      countryCode: 'BR',
+      description: 'Parque Nacional com dunas branquinhas e lagoas de água doce que se formam no período chuvoso. Passeios de 4x4, voos panorâmicos e vilas rústicas completam o roteiro.',
+      shortDescription: 'Dunas e lagoas cristalinas no Nordeste brasileiro',
+      bestMonths: [6, 7, 8, 9],
+      averageBudget: 360.00,
+      popularityScore: 81,
+      latitude: -2.743300,
+      longitude: -42.826700,
+      timezone: 'America/Fortaleza',
       categoryNames: ['Natureza', 'Aventura', 'Família'],
     },
 
@@ -264,6 +571,51 @@ export async function seedDestinations(prisma: PrismaClient) {
       timezone: 'America/Los_Angeles',
       categoryNames: ['Metrópole', 'Cultural', 'Gastronômico', 'Compras'],
     },
+    {
+      name: 'Los Angeles',
+      city: 'Los Angeles',
+      country: 'United States',
+      countryCode: 'US',
+      description: 'Capital mundial do cinema, com Hollywood, estúdios, praias como Santa Monica e Venice, e gastronomia multicultural. Combina glamour com cenários californianos icônicos.',
+      shortDescription: 'Hollywood, Santa Monica e estilo californiano',
+      bestMonths: [3, 4, 5, 9, 10],
+      averageBudget: 950.00,
+      popularityScore: 88,
+      latitude: 34.052235,
+      longitude: -118.243683,
+      timezone: 'America/Los_Angeles',
+      categoryNames: ['Metrópole', 'Praia', 'Gastronômico', 'Compras'],
+    },
+    {
+      name: 'Cancún',
+      city: 'Cancún',
+      country: 'México',
+      countryCode: 'MX',
+      description: 'Destino mais famoso da Riviera Maya, com resorts all-inclusive, mar azul-turquesa, vida noturna vibrante e proximidade às ruínas maias de Tulum e Chichén Itzá.',
+      shortDescription: 'Resorts caribenhos e ruínas maias na Riviera Maya',
+      bestMonths: [1, 2, 3, 4, 11, 12],
+      averageBudget: 780.00,
+      popularityScore: 90,
+      latitude: 21.161908,
+      longitude: -86.851528,
+      timezone: 'America/Cancun',
+      categoryNames: ['Praia', 'Romance', 'Aventura', 'Luxo'],
+    },
+    {
+      name: 'Vancouver',
+      city: 'Vancouver',
+      country: 'Canadá',
+      countryCode: 'CA',
+      description: 'Cidade costeira cercada por montanhas, parques urbanos como Stanley Park, esportes ao ar livre e uma cena gastronômica multicultural vibrante.',
+      shortDescription: 'Paisagens entre montanhas e mar no Canadá',
+      bestMonths: [5, 6, 7, 8, 9],
+      averageBudget: 1000.00,
+      popularityScore: 85,
+      latitude: 49.282729,
+      longitude: -123.120738,
+      timezone: 'America/Vancouver',
+      categoryNames: ['Natureza', 'Metrópole', 'Aventura'],
+    },
 
     // Europa
     {
@@ -342,6 +694,117 @@ export async function seedDestinations(prisma: PrismaClient) {
       categoryNames: ['Metrópole', 'Cultural', 'Gastronômico'],
     },
 
+    // Ásia
+    {
+      name: 'Tóquio',
+      city: 'Tóquio',
+      country: 'Japão',
+      countryCode: 'JP',
+      description: 'Metrópole futurista que mescla tecnologia, cultura pop e tradição. Shibuya e Shinjuku vibram com neon, enquanto templos históricos e mercados gastronômicos encantam.',
+      shortDescription: 'Tecnologia, tradição e gastronomia japonesa',
+      bestMonths: [3, 4, 5, 10, 11],
+      averageBudget: 1300.00,
+      popularityScore: 96,
+      latitude: 35.689487,
+      longitude: 139.691711,
+      timezone: 'Asia/Tokyo',
+      categoryNames: ['Metrópole', 'Cultural', 'Gastronômico', 'Compras'],
+    },
+    {
+      name: 'Dubai',
+      city: 'Dubai',
+      country: 'Emirados Árabes Unidos',
+      countryCode: 'AE',
+      description: 'Cidade futurista no deserto com arranha-céus icônicos como o Burj Khalifa, shoppings gigantescos, safáris no deserto e hotéis de luxo incomparáveis.',
+      shortDescription: 'Arranha-céus, deserto e experiências de luxo',
+      bestMonths: [11, 12, 1, 2, 3, 4],
+      averageBudget: 1400.00,
+      popularityScore: 90,
+      latitude: 25.204849,
+      longitude: 55.270782,
+      timezone: 'Asia/Dubai',
+      categoryNames: ['Metrópole', 'Luxo', 'Compras', 'Aventura'],
+    },
+    {
+      name: 'Bali (Seminyak e Ubud)',
+      city: 'Denpasar',
+      country: 'Indonésia',
+      countryCode: 'ID',
+      description: 'Ilha dos deuses com templos hindus, praias ensolaradas, spas renomados, campos de arroz em Ubud e beach clubs sofisticados em Seminyak.',
+      shortDescription: 'Templos, praias e bem-estar balinês',
+      bestMonths: [4, 5, 6, 7, 8, 9],
+      averageBudget: 680.00,
+      popularityScore: 88,
+      latitude: -8.409518,
+      longitude: 115.188919,
+      timezone: 'Asia/Makassar',
+      categoryNames: ['Praia', 'Natureza', 'Romance', 'Luxo'],
+    },
+
+    // África
+    {
+      name: 'Cidade do Cabo',
+      city: 'Cidade do Cabo',
+      country: 'África do Sul',
+      countryCode: 'ZA',
+      description: 'Cidade costeira com a icônica Table Mountain, vinícolas em Stellenbosch, praias como Camps Bay e rica cena cultural e gastronômica.',
+      shortDescription: 'Table Mountain, vinhos e praias sul-africanas',
+      bestMonths: [11, 12, 1, 2, 3],
+      averageBudget: 950.00,
+      popularityScore: 84,
+      latitude: -33.924869,
+      longitude: 18.424055,
+      timezone: 'Africa/Johannesburg',
+      categoryNames: ['Natureza', 'Aventura', 'Praia', 'Gastronômico'],
+    },
+    {
+      name: 'Marrakesh',
+      city: 'Marrakesh',
+      country: 'Marrocos',
+      countryCode: 'MA',
+      description: 'Cidade imperial marroquina com souks coloridos, palácios ornamentados, riads charmosos e excursões ao deserto do Saara.',
+      shortDescription: 'Souks perfumados e riads tradicionais',
+      bestMonths: [3, 4, 5, 9, 10],
+      averageBudget: 680.00,
+      popularityScore: 80,
+      latitude: 31.629472,
+      longitude: -7.981084,
+      timezone: 'Africa/Casablanca',
+      categoryNames: ['Cultural', 'Gastronômico', 'Compras', 'Aventura'],
+    },
+
+    // Oceania
+    {
+      name: 'Sydney',
+      city: 'Sydney',
+      country: 'Austrália',
+      countryCode: 'AU',
+      description: 'Metrópole australiana com ícones como a Opera House e Harbour Bridge, praias famosas como Bondi e parques nacionais acessíveis.',
+      shortDescription: 'Opera House, Harbour Bridge e lifestyle australiano',
+      bestMonths: [9, 10, 11, 12, 1, 2],
+      averageBudget: 1250.00,
+      popularityScore: 89,
+      latitude: -33.868820,
+      longitude: 151.209290,
+      timezone: 'Australia/Sydney',
+      categoryNames: ['Metrópole', 'Praia', 'Natureza'],
+    },
+    {
+      name: 'Queenstown',
+      city: 'Queenstown',
+      country: 'Nova Zelândia',
+      countryCode: 'NZ',
+      description: 'Capital da aventura da Nova Zelândia com esportes radicais, trilhas alpinas, vinhos de Central Otago e cenários do lago Wakatipu.',
+      shortDescription: 'Aventura alpina às margens do lago Wakatipu',
+      bestMonths: [1, 2, 3, 7, 8, 9],
+      averageBudget: 980.00,
+      popularityScore: 82,
+      latitude: -45.031162,
+      longitude: 168.662643,
+      timezone: 'Pacific/Auckland',
+      categoryNames: ['Aventura', 'Natureza', 'Família'],
+    },
+
     // Caribe
     {
       name: 'Punta Cana',
@@ -377,6 +840,12 @@ export async function seedDestinations(prisma: PrismaClient) {
 
   for (const dest of destinations) {
     const { categoryNames, ...destData } = dest;
+    const media = destinationMedia[destData.name];
+    const destinationInput = {
+      ...destData,
+      heroImageUrl: media?.heroImageUrl ?? null,
+      galleryImageUrls: media?.galleryImageUrls ?? [],
+    };
 
     // Check if destination already exists
     const existing = await prisma.destination.findFirst({
@@ -390,10 +859,10 @@ export async function seedDestinations(prisma: PrismaClient) {
     const destination = existing
       ? await prisma.destination.update({
           where: { id: existing.id },
-          data: destData
+          data: destinationInput
         })
       : await prisma.destination.create({
-          data: destData
+          data: destinationInput
         });
 
     // Link categories

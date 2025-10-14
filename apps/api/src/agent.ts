@@ -1,82 +1,102 @@
 import { createReactAgent } from "@langchain/langgraph/prebuilt";
-import { z } from "zod";
 import type { CompiledStateGraph } from "@langchain/langgraph";
+import { z } from "zod";
 import { createLLM } from "./services/llm.service";
-
-// Import tools
+import { getSeasonalInfoTool, searchDestinationsTool } from "./tools/destination.tools";
 import {
+  bookFlightTool,
+  cancelFlightTool,
+  getAirportInfoTool,
+  listFlightsTool,
+} from "./tools/flight.tools";
+import {
+  bookHotelTool,
+  cancelHotelTool,
+  getHotelAmenitiesTool,
+  getHotelCategoriesTool,
+  listHotelsTool,
+} from "./tools/hotel.tools";
+
+const AgentOutputFormatSchema = z.object({
+  numeric_answer: z
+    .number()
+    .optional()
+    .describe("The numeric answer, if the user asked for one"),
+  text_answer: z
+    .string()
+    .optional()
+    .describe("The text answer, if the user asked for one"),
+  reasoning: z.string().describe("The reasoning behind the answer"),
+});
+
+export const travelAgentTools = [
   searchDestinationsTool,
   getSeasonalInfoTool,
-} from "./tools/destination.tools";
-import {
   listFlightsTool,
   bookFlightTool,
   cancelFlightTool,
   getAirportInfoTool,
-} from "./tools/flight.tools";
-import {
   listHotelsTool,
   bookHotelTool,
   cancelHotelTool,
   getHotelCategoriesTool,
   getHotelAmenitiesTool,
-} from "./tools/hotel.tools";
+] as const;
 
-const model = createLLM();
+export type TravelAgentGraph = CompiledStateGraph<any, any, any>;
 
-const AgentOutputFormatSchema = z.object({
-  numeric_answer: z.number().optional().describe("The numeric answer, if the user asked for one"),
-  text_answer: z.string().optional().describe("The text answer, if the user asked for one"),
-  reasoning: z.string().describe("The reasoning behind the answer"),
-})
+export function createTravelAgentGraph(): TravelAgentGraph {
+  return createReactAgent({
+    llm: createLLM(),
+    tools: [...travelAgentTools],
+    messageModifier: `
+  You are a travel planning assistant with access to a comprehensive database of destinations, flights, and hotels.
 
-// Criar agente usando LangGraph (versão moderna)
-export const agent: CompiledStateGraph<any, any, any> = createReactAgent({
-    llm: model,
-    tools: [
-      // Destination tools
-      searchDestinationsTool,
-      getSeasonalInfoTool,
-      // Flight tools
-      listFlightsTool,
-      bookFlightTool,
-      cancelFlightTool,
-      getAirportInfoTool,
-      // Hotel tools
-  listHotelsTool,
-  bookHotelTool,
-  cancelHotelTool,
-      getHotelCategoriesTool,
-      getHotelAmenitiesTool,
-    ],
-  messageModifier: `You are a travel planning assistant.
+  CRITICAL RULE - ALWAYS USE TOOLS FIRST:
+  - BEFORE providing ANY travel recommendations, suggestions, or information about destinations, flights, or hotels, you MUST call the appropriate tools to search our database.
+  - ONLY handle simple greetings ("hello", "hi", "thanks") conversationally without tools.
+  - For ALL other requests mentioning travel, places, trips, accommodations, or flights: CALL TOOLS FIRST, then present results.
 
-Core rules:
-- Use your LLM ability to handle conversational inputs (greetings, rapport, clarifications, preference gathering) without calling tools. Stay friendly and concise.
-- For any factual or data-dependent request (destinations, seasons, flights, airports, hotels, prices, availability), ALWAYS call the internal tools listed below and ground the answer strictly in their results.
-- NEVER recommend external websites, apps, search engines, or third-party travel services. When information is unavailable in our database, explain the limitation, propose how to refine the request, or suggest nearby options from our data—do not send the user elsewhere.
+  When to use each tool:
+  - User mentions wanting to visit/know/discover a place → IMMEDIATELY call search_destinations
+  - User asks about weather/best time to visit → call get_seasonal_info
+  - User mentions flights/traveling between cities → call list_flights
+  - User asks about hotels/accommodations/where to stay → call list_hotels
+  - User wants to book → call book_flight or book_hotel
+  - User wants to cancel → call cancel_flight or cancel_hotel
 
-Available tools (use these exact names):
-- search_destinations
-- get_seasonal_info
-- list_flights
-- book_flight
-- cancel_flight
-- get_airport_info
-- list_hotels
-- book_hotel
-- cancel_hotel
-- get_hotel_categories
-- get_hotel_amenities
+  Available tools (use these exact names):
+  - search_destinations: Search for travel destinations by name, city, country, or category
+  - get_seasonal_info: Get climate, temperature, and best months to visit a destination
+  - list_flights: Search flights between airports/cities with price and availability
+  - book_flight: Book a flight reservation
+  - cancel_flight: Cancel a flight booking
+  - get_airport_info: Get airport details and alternatives
+  - list_hotels: Search hotels by location with filtering options
+  - book_hotel: Book a hotel reservation
+  - cancel_hotel: Cancel a hotel booking
+  - get_hotel_categories: Get available hotel categories
+  - get_hotel_amenities: Get available hotel amenities
 
-Behavior:
-- Determine if a tool call is required; if so, choose the smallest set of tools to answer the question. Combine multiple tools when it improves accuracy and explicitly mention which tools informed the answer.
-- Maintain context across the conversation. Reference prior user preferences or answers you requested earlier before asking for new details.
-- Determine if a tool call is required; if so, choose the smallest set of tools to answer the question. Combine multiple tools when it improves accuracy and explicitly mention which tools informed the answer.
-- If a tool returns no results, state that no records were found in our database and offer concrete next steps (broaden dates/locations, tweak filters, or ask follow-up questions).
-- Never fabricate database facts. Ask clarifying questions when the user input is insufficient to choose the right tool parameters.
+  Behavior:
+  1. ALWAYS call relevant tools BEFORE giving recommendations
+  2. If tools return results: Present them clearly with all available data (names, prices, images, ratings)
+  3. If tools return empty: Explain no results found and suggest refinements (different dates, nearby cities, broader search)
+  4. NEVER fabricate destinations, flights, or hotels not returned by tools
+  5. NEVER recommend external websites or third-party services
+  6. Maintain conversation context and reference previous user preferences
 
-Keep all factual answers concise, helpful, and sourced from tool outputs.`,
-});
+  Example correct flow:
+  User: "Quero conhecer uma praia no nordeste"
+  → Call search_destinations with query about beach/nordeste
+  → Present actual destinations from database with details
+  → NOT: List generic beaches without calling tools
+
+  Keep answers helpful, concise, and grounded in tool outputs.`,
+  });
+}
+
+export const graph = createTravelAgentGraph();
+export const agent = graph;
 
 export type AgentOutput = z.infer<typeof AgentOutputFormatSchema>;

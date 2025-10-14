@@ -1,15 +1,33 @@
 import express from "express";
-import { randomUUID } from "crypto";
-import { type BaseMessage, HumanMessage } from "@langchain/core/messages";
+import cors from "cors";
 import swaggerUi from "swagger-ui-express";
 import logger from "./config/logger";
 import { env } from "./config/env";
-import { agent } from "./agent";
-import { conversationStore } from "./lib/conversation-store";
 import openApiDocument from "./docs/openapi.json" assert { type: "json" };
+import { agentRouter } from "./routes/agent.routes.js";
+import { threadsRouter } from "./routes/threads.js";
+import { langGraphStreamRouter } from "./routes/langgraph.stream.js";
 
 const app = express();
 const PORT = env.PORT;
+
+const allowAllOrigins = env.CLIENT_ORIGINS.includes("*");
+const originMatchers = env.CLIENT_ORIGINS.filter((origin) => origin !== "*").map(createOriginMatcher);
+
+const corsMiddleware = cors({
+  origin(origin, callback) {
+    if (allowAllOrigins || !origin || isAllowedOrigin(origin, originMatchers)) {
+      callback(null, true);
+      return;
+    }
+    logger.warn({ origin, allowed: env.CLIENT_ORIGINS }, "cors origin rejected");
+    callback(new Error(`Origin ${origin} is not allowed by CORS`));
+  },
+  methods: ["GET", "POST", "OPTIONS"],
+  allowedHeaders: ["Content-Type"],
+});
+
+app.use(corsMiddleware);
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -19,96 +37,38 @@ app.get("/openapi.json", (_req, res) => {
   res.json(openApiDocument);
 });
 
+app.use("/agent", agentRouter);
+app.use("/threads", threadsRouter);
+app.use("/langgraph", langGraphStreamRouter);
+
 app.get("/health", (req, res) => {
   res.send("OK - Server is healthy");
 });
 
-app.post("/agent", async (req, res) => {
-  try {
-    const body = req.body ?? {};
-    const incomingMessage: unknown = body.message;
-    const providedConversationId: unknown = body.conversationId;
-    const resetConversation: unknown = body.reset;
+type OriginMatcher = string | RegExp;
 
-    if (typeof incomingMessage !== "string" || incomingMessage.trim().length === 0) {
-      return res.status(400).json({ error: "Request body must contain a non-empty 'message' field." });
-    }
-
-    const trimmedMessage = incomingMessage.trim();
-
-    let conversationId =
-      typeof providedConversationId === "string" && providedConversationId.trim().length > 0
-        ? providedConversationId.trim()
-        : randomUUID();
-
-    if (resetConversation === true) {
-      await conversationStore.clear(conversationId);
-    }
-
-    const history = await conversationStore.get(conversationId);
-
-    const result = (await agent.invoke({
-      messages: [...history, new HumanMessage(trimmedMessage)],
-    })) as { messages: BaseMessage[] };
-
-    // Pega a última mensagem do agente
-    const lastMessage = result.messages[result.messages.length - 1];
-
-    await conversationStore.set(conversationId, result.messages);
-
-    const response = normalizeMessageContent(lastMessage?.content) ?? "Sem resposta";
-
-    logger.debug(response);
-    res.json({ conversationId, response });
-  } catch (error: any) {
-    console.error("=== ERROR DETAILS ===");
-    console.error("Error:", error);
-    console.error("Stack:", error?.stack);
-    console.error("Message:", error?.message);
-    console.error("====================");
-    res.status(500).send("Internal Server Error");
-  }
-});
-
-function normalizeMessageContent(content?: BaseMessage["content"]): string | undefined {
-  if (!content) {
-    return undefined;
+function createOriginMatcher(origin: string): OriginMatcher {
+  if (!origin.includes("*")) {
+    return origin;
   }
 
-  if (typeof content === "string") {
-    return content;
-  }
-
-  if (Array.isArray(content)) {
-    return content
-      .map((chunk) => {
-        if (typeof chunk === "string") {
-          return chunk;
-        }
-
-        const chunkAsAny = chunk as Record<string, unknown>;
-
-        if (chunkAsAny?.type === "text" && typeof chunkAsAny.text === "string") {
-          return chunkAsAny.text;
-        }
-
-        if (chunkAsAny?.type === "tool_response" && chunkAsAny.toolResponse !== undefined) {
-          const toolResponse = chunkAsAny.toolResponse;
-          return typeof toolResponse === "string" ? toolResponse : JSON.stringify(toolResponse);
-        }
-
-        if ("json" in chunkAsAny && chunkAsAny.json !== undefined) {
-          return JSON.stringify(chunkAsAny.json);
-        }
-
-        return "";
-      })
-      .filter(Boolean)
-      .join("\n");
-  }
-
-  return undefined;
+  const escaped = origin.split("*").map(escapeRegExp).join(".*");
+  return new RegExp(`^${escaped}$`);
 }
+
+function isAllowedOrigin(candidate: string, matchers: OriginMatcher[]): boolean {
+  return matchers.some((matcher) => {
+    if (typeof matcher === "string") {
+      return matcher === candidate;
+    }
+    return matcher.test(candidate);
+  });
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
